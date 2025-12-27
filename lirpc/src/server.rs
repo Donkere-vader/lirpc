@@ -53,6 +53,15 @@ where
     }
 }
 
+impl ServerBuilder<()> {
+    pub fn build(self) -> Server<()> {
+        Server {
+            state: (),
+            handlers: Arc::new(self.handlers),
+        }
+    }
+}
+
 pub struct Server<S: Clone> {
     state: S,
     handlers: Arc<HashMap<String, Box<dyn Service<S>>>>,

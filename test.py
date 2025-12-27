@@ -10,18 +10,10 @@ async def run_client():
         try:
             # Send one message
             headers = {
-                "method": "do_something",
+                "method": "greet",
                 "id": 0,
             }
             payload = {"name": "Cas"}
-            await websocket.send(f"{json.dumps(headers)}\n\n{json.dumps(payload)}")
-            print(f"Sent with headers: {headers} payload: {payload}")
-
-            headers = {
-                "method": "do_something_twice",
-                "id": 1,
-            }
-            payload = {"name": "Cas2"}
             await websocket.send(f"{json.dumps(headers)}\n\n{json.dumps(payload)}")
             print(f"Sent with headers: {headers} payload: {payload}")
 
@@ -29,7 +21,7 @@ async def run_client():
             async for message in websocket:
                 split_message = message.splitlines()
                 print(
-                    f"Received headers: {split_message[0]} payload: {split_message[2]}"
+                    f"Received with headers: {json.loads(split_message[0])} payload: {json.loads(split_message[2])}"
                 )
         except asyncio.CancelledError:
             print("\nClosing websocket...")
