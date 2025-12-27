@@ -1,11 +1,13 @@
 mod message;
 mod output;
+mod output_stream;
 mod state;
 
 use std::fmt::Debug;
 
 pub use message::Message;
 pub use output::Output;
+pub use output_stream::OutputStream;
 pub use state::State;
 
 use tokio::sync::mpsc::Sender;

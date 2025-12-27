@@ -18,7 +18,7 @@ async def run_client():
             print(f"Sent with headers: {headers} payload: {payload}")
 
             headers = {
-                "method": "do_something",
+                "method": "do_something_twice",
                 "id": 1,
             }
             payload = {"name": "Cas2"}

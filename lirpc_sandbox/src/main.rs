@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 use lirpc::{
     ServerBuilder,
     error::LiRpcError,
-    extractors::{Message, Output, State},
+    extractors::{Message, Output, OutputStream, State},
 };
 use serde::{Deserialize, Serialize};
 use tracing::{Level, info};
@@ -45,6 +45,33 @@ async fn do_something(
     Ok(())
 }
 
+async fn do_something_twice(
+    State(app_state): State<AppState>,
+    Message(msg): Message<HelloMessage>,
+    output: OutputStream<HelloResponse>,
+) -> Result<(), LiRpcError> {
+    let mut counter_lock = app_state.counter.lock().await;
+    *counter_lock += 1;
+    let counter_value = *counter_lock;
+    drop(counter_lock);
+
+    let f1 = output.send(HelloResponse {
+        msg: format!("Hello {}!", msg.name),
+        count: counter_value,
+    });
+
+    let f2 = output.send(HelloResponse {
+        msg: format!("Hello {}!", msg.name),
+        count: counter_value,
+    });
+
+    let (r1, r2) = tokio::join!(f1, f2);
+    r1?;
+    r2?;
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -55,6 +82,7 @@ async fn main() {
 
     let server = ServerBuilder::new()
         .register_handler("do_something".to_string(), do_something)
+        .register_handler("do_something_twice".to_string(), do_something_twice)
         .build_with_state(AppState {
             counter: Arc::new(Mutex::new(0)),
         });
