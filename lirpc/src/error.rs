@@ -16,4 +16,6 @@ pub enum LiRpcError {
     HandlerNotFound(String),
     #[error("SendError: {0}")]
     SendError(#[from] mpsc::error::SendError<LiRpcResponse>),
+    #[error("Extractor error: {0}")]
+    ExtractorError(String),
 }
