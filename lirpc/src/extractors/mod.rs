@@ -1,12 +1,12 @@
-mod app_state;
 mod message;
 mod output;
+mod state;
 
 use std::fmt::Debug;
 
-pub use app_state::AppState;
 pub use message::Message;
 pub use output::Output;
+pub use state::State;
 
 use tokio::sync::mpsc::Sender;
 

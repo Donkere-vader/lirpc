@@ -1,7 +1,11 @@
 use std::{env, str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
 
-use lirpc::{ServerBuilder, error::LiRpcError, extractors};
+use lirpc::{
+    ServerBuilder,
+    error::LiRpcError,
+    extractors::{Message, Output, State},
+};
 use serde::{Deserialize, Serialize};
 use tracing::{Level, info};
 
@@ -22,9 +26,9 @@ struct HelloResponse {
 }
 
 async fn do_something(
-    extractors::AppState(app_state): extractors::AppState<AppState>,
-    extractors::Message(msg): extractors::Message<HelloMessage>,
-    output: extractors::Output<HelloResponse>,
+    State(app_state): State<AppState>,
+    Message(msg): Message<HelloMessage>,
+    output: Output<HelloResponse>,
 ) -> Result<(), LiRpcError> {
     let mut counter_lock = app_state.counter.lock().await;
     *counter_lock += 1;

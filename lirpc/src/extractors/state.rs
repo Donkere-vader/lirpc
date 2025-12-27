@@ -7,9 +7,9 @@ use crate::{
     lirpc_message::{LiRpcMessage, LiRpcResponse},
 };
 
-pub struct AppState<S>(pub S);
+pub struct State<S>(pub S);
 
-impl<S: Clone> FromConnectionMessage<S> for AppState<S> {
+impl<S: Clone> FromConnectionMessage<S> for State<S> {
     type Error = LiRpcError;
 
     fn from_connection_message(
