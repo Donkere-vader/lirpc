@@ -31,6 +31,9 @@ where
         }
     }
 
+    /// Register a method/handler to this service
+    /// The `name` given to the handler here is what a client
+    /// will use to end up calling this handler/method
     pub fn register_handler<F, T>(
         mut self,
         name: String,
