@@ -11,3 +11,8 @@ tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tokio-tungstenite = "0.28"
 futures = "0.3"
+
+[dev-dependencies]
+
+# for the examples
+lirpc_macros = { path = "../lirpc_macros" }

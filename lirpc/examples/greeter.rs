@@ -3,8 +3,10 @@ use lirpc::{
     error::LiRpcError,
     extractors::{Message, Output},
 };
+use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::{Deserialize, Serialize};
 
+#[lirpc_type]
 #[derive(Deserialize)]
 struct GreetingRequest {
     name: String,
@@ -15,6 +17,7 @@ struct GreetingResponse {
     msg: String,
 }
 
+#[lirpc_method]
 async fn greet(
     Message(msg): Message<GreetingRequest>,
     output: Output<GreetingResponse>,

@@ -5,6 +5,7 @@ use lirpc::{
     error::LiRpcError,
     extractors::{Output, State},
 };
+use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::Serialize;
 use tokio::sync::Mutex;
 
@@ -14,10 +15,12 @@ struct AppState {
 }
 
 #[derive(Serialize)]
+#[lirpc_type]
 struct CountResponse {
     count: u64,
 }
 
+#[lirpc_method]
 async fn count(
     State(app_state): State<AppState>,
     output: Output<CountResponse>,
