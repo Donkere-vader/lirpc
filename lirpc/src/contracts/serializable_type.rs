@@ -1,9 +1,9 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use syn::{
     Expr, ExprLit, GenericArgument, Lit, PathArguments, Type, TypeArray, TypePath, TypeTuple,
 };
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SerializableType {
     Array {

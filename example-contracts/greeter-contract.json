@@ -1,0 +1,24 @@
+{
+  "version": "0.1.0",
+  "types": {
+    "GreetingRequest": {
+      "fields": {
+        "name": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "methods": {
+    "greet": {
+      "output": {
+        "type": "custom",
+        "name": "GreetingResponse"
+      },
+      "message": {
+        "type": "custom",
+        "name": "GreetingRequest"
+      }
+    }
+  }
+}

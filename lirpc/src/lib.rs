@@ -1,4 +1,5 @@
 mod connection;
+pub mod contracts;
 pub mod error;
 pub mod extractors;
 mod handler;

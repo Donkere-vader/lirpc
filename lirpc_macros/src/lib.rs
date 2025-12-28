@@ -1,26 +1,13 @@
-mod serializable_type;
-
 use std::{collections::HashMap, env, fs, path::PathBuf};
 
+use lirpc::contracts::{
+    lirpc_method_file::LiRpcMethodFile, lirpc_type_file::LiRpcTypeFile,
+    serializable_type::SerializableType,
+};
 use proc_macro::TokenStream;
 use quote::quote;
 use serde::Serialize;
 use syn::{ItemFn, ItemStruct, parse_macro_input};
-
-use crate::serializable_type::SerializableType;
-
-#[derive(Serialize)]
-struct LiRpcType {
-    name: String,
-    fields: HashMap<String, SerializableType>, // field name: field type
-}
-
-#[derive(Serialize)]
-struct LiRpcMethod {
-    name: String,
-    output: Option<SerializableType>,
-    message: Option<SerializableType>,
-}
 
 #[proc_macro_attribute]
 pub fn lirpc_type(_attrs: TokenStream, item: TokenStream) -> TokenStream {
@@ -43,7 +30,7 @@ pub fn lirpc_type(_attrs: TokenStream, item: TokenStream) -> TokenStream {
         })
         .collect::<HashMap<String, SerializableType>>();
 
-    let lirpc_type = LiRpcType {
+    let lirpc_type = LiRpcTypeFile {
         name: struct_ident.to_string(),
         fields,
     };
@@ -109,7 +96,7 @@ pub fn lirpc_method(_attrs: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
-    let lirpc_method = LiRpcMethod {
+    let lirpc_method = LiRpcMethodFile {
         name: method_signature.ident.to_string(),
         output,
         message,
