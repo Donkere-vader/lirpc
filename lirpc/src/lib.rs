@@ -1,3 +1,4 @@
+pub mod codegen;
 mod connection;
 pub mod contracts;
 pub mod error;

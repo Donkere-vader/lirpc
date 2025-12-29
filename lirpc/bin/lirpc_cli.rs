@@ -20,6 +20,11 @@ enum Commands {
         #[clap(long, default_value_t = false)]
         minimal: bool,
     },
+    CodeGen {
+        contract_path: String,
+        language: String,
+        output_path: String,
+    },
 }
 
 #[tokio::main]
@@ -44,6 +49,13 @@ async fn main() {
                 minimal,
             )
             .await
+        }
+        Commands::CodeGen {
+            contract_path: _,
+            language: _,
+            output_path: _,
+        } => {
+            todo!()
         }
     };
 
