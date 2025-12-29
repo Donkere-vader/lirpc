@@ -7,20 +7,20 @@ use crate::{
     lirpc_message::{LiRpcMessage, LiRpcResponse},
 };
 
-pub struct State<S>(pub S);
+pub struct ConnectionState<C>(pub C);
 
-impl<S: Clone, C> FromConnectionMessage<S, C> for State<S>
+impl<S, C> FromConnectionMessage<S, C> for ConnectionState<C>
 where
     C: Clone + Send + Sync + 'static,
 {
     type Error = LiRpcError;
 
     fn from_connection_message(
-        _connection: &ConnectionDetails<C>,
+        connection: &ConnectionDetails<C>,
         _message: &LiRpcMessage,
-        state: &S,
+        _state: &S,
         _output: &Sender<LiRpcResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self(state.clone()))
+        Ok(Self(connection.connection_state.clone()))
     }
 }

@@ -1,21 +1,22 @@
-use std::pin::Pin;
+use std::{pin::Pin, sync::Arc};
 
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    connection::Connection,
+    connection_details::ConnectionDetails,
     error::LiRpcError,
     extractors::FromConnectionMessage,
     lirpc_message::{LiRpcMessage, LiRpcResponse},
 };
 
-pub trait Handler<F, T, S>
+pub trait Handler<F, T, S, C>
 where
     Self: Send + Sync + 'static,
+    C: Clone + Send + Sync + 'static,
 {
     fn call(
         &self,
-        connection: Connection,
+        connection: Arc<ConnectionDetails<C>>,
         message: LiRpcMessage,
         state: S,
         output: Sender<LiRpcResponse>,
@@ -24,7 +25,7 @@ where
 
 macro_rules! try_extract {
     ($Ty:ty, $connection:expr, $message:expr, $state:expr, $output:expr) => {{
-        match <$Ty as FromConnectionMessage<_>>::from_connection_message(
+        match <$Ty as FromConnectionMessage<_, _>>::from_connection_message(
             &$connection,
             &$message,
             &$state,
@@ -43,15 +44,16 @@ macro_rules! try_extract {
 
 macro_rules! impl_handler {
     (( $($Ti:ident),* )) => {
-        impl<F, $($Ti,)* S, Fut> Handler<F, ( $($Ti,)* ), S> for F
+        impl<F, $($Ti,)* S, Fut, C> Handler<F, ( $($Ti,)* ), S, C> for F
         where
             F: Fn( $($Ti),* ) -> Fut + Send + Sync + 'static,
+            C: Clone + Send + Sync + 'static,
             Fut: Future<Output = Result<(), LiRpcError>> + Send + 'static,
-            $( $Ti: FromConnectionMessage<S>, )*
+            $( $Ti: FromConnectionMessage<S, C>, )*
         {
             fn call(
                 &self,
-                connection: Connection,
+                connection: std::sync::Arc<ConnectionDetails<C>>,
                 message: LiRpcMessage,
                 state: S,
                 output: Sender<LiRpcResponse>,

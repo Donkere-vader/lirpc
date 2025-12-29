@@ -9,7 +9,7 @@ use tokio_tungstenite::{WebSocketStream, accept_async, tungstenite::Message};
 use tracing::{error, warn};
 
 use crate::{
-    connection::Connection,
+    connection_details::ConnectionDetails,
     error::LiRpcError,
     handler::Handler,
     lirpc_message::{LiRpcMessage, LiRpcResponse},
@@ -17,13 +17,14 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct ServerBuilder<S: Clone> {
-    handlers: HashMap<String, Box<dyn Service<S>>>,
+pub struct ServerBuilder<S: Clone, C> {
+    handlers: HashMap<String, Box<dyn Service<S, C>>>,
 }
 
-impl<S> ServerBuilder<S>
+impl<S, C> ServerBuilder<S, C>
 where
     S: Send + Sync + Clone + 'static,
+    C: Clone,
 {
     pub fn new() -> Self {
         Self {
@@ -37,54 +38,83 @@ where
     pub fn register_handler<F, T>(
         mut self,
         name: String,
-        handler: impl Handler<F, T, S> + 'static,
+        handler: impl Handler<F, T, S, C> + 'static,
     ) -> Self
     where
         F: 'static,
         T: 'static,
+        C: Default + Send + Sync + 'static,
     {
         self.handlers
             .insert(name, Box::new(HandlerService(Box::new(handler))));
         self
     }
 
-    pub fn build_with_state(self, state: S) -> Server<S> {
+    pub fn build_with_state_and_connection_state(
+        self,
+        state: S,
+        default_connection_state: impl Fn() -> C + 'static,
+    ) -> Server<S, C> {
         Server {
             state,
             handlers: Arc::new(self.handlers),
+            connection_state_initializer: Box::new(default_connection_state),
         }
     }
 }
 
-impl ServerBuilder<()> {
-    pub fn build(self) -> Server<()> {
+impl<S> ServerBuilder<S, ()>
+where
+    S: Clone,
+{
+    pub fn build_with_state(self, state: S) -> Server<S, ()> {
+        Server {
+            state,
+            handlers: Arc::new(self.handlers),
+            connection_state_initializer: Box::new(|| ()),
+        }
+    }
+}
+
+impl ServerBuilder<(), ()> {
+    pub fn build(self) -> Server<(), ()> {
         Server {
             state: (),
             handlers: Arc::new(self.handlers),
+            connection_state_initializer: Box::new(|| ()),
         }
     }
 }
 
-pub struct Server<S: Clone> {
-    state: S,
-    handlers: Arc<HashMap<String, Box<dyn Service<S>>>>,
+impl<C> ServerBuilder<(), C> {
+    pub fn build_with_connection_state(
+        self,
+        default_connection_state: impl Fn() -> C + 'static,
+    ) -> Server<(), C> {
+        Server {
+            state: (),
+            handlers: Arc::new(self.handlers),
+            connection_state_initializer: Box::new(default_connection_state),
+        }
+    }
 }
 
-impl<S> Server<S>
+pub struct Server<S: Clone, C> {
+    state: S,
+    handlers: Arc<HashMap<String, Box<dyn Service<S, C>>>>,
+    connection_state_initializer: Box<dyn Fn() -> C>,
+}
+
+impl<S, C> Server<S, C>
 where
     S: Clone + Send + Sync + 'static,
+    C: Clone + Send + Sync + 'static,
 {
-    pub fn new(state: S) -> Self {
-        Self {
-            state,
-            handlers: Arc::new(HashMap::new()),
-        }
-    }
-
     async fn handle_message(
-        handlers: Arc<HashMap<String, Box<dyn Service<S>>>>,
+        handlers: Arc<HashMap<String, Box<dyn Service<S, C>>>>,
         websocket_message: Message,
         state: S,
+        connection: Arc<ConnectionDetails<C>>,
         output: mpsc::Sender<LiRpcResponse>,
     ) -> Result<(), LiRpcError> {
         let message = LiRpcMessage::try_from(websocket_message)?;
@@ -95,7 +125,7 @@ where
                 message.headers.method.to_string(),
             ))?;
 
-        handler.call(Connection {}, message, state, output).await?;
+        handler.call(connection, message, state, output).await?;
 
         Ok(())
     }
@@ -103,10 +133,13 @@ where
     async fn handle_connection(
         socket: WebSocketStream<TcpStream>,
         state: S,
-        handlers: Arc<HashMap<String, Box<dyn Service<S>>>>,
+        new_connection_details: ConnectionDetails<C>,
+        handlers: Arc<HashMap<String, Box<dyn Service<S, C>>>>,
     ) {
         let (mut ws_sender, mut ws_receiver) = socket.split();
         let (tx, mut rx) = mpsc::channel(10);
+
+        let connection_details = Arc::new(new_connection_details);
 
         loop {
             tokio::select! {
@@ -119,9 +152,10 @@ where
                             let handlers_clone = handlers.clone();
                             let tx_clone = tx.clone();
                             let state_clone = state.clone();
+                            let connection_clone = connection_details.clone();
 
                             tokio::spawn(async move {
-                                if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, tx_clone).await {
+                                if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, connection_clone, tx_clone).await {
                                     error!("Error handling message: {e}");
                                 }
                             });
@@ -170,8 +204,17 @@ where
                 }
             };
 
+            let new_connection_details =
+                ConnectionDetails::new((*self.connection_state_initializer)());
+
             tokio::spawn(async move {
-                Self::handle_connection(accepted_stream, state_clone, handlers_clone).await;
+                Self::handle_connection(
+                    accepted_stream,
+                    state_clone,
+                    new_connection_details,
+                    handlers_clone,
+                )
+                .await;
             });
         }
 
