@@ -4,7 +4,6 @@ use serde::Serialize;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    connection_details::ConnectionDetails,
     error::LiRpcError,
     extractors::FromConnectionMessage,
     lirpc_message::{LiRpcMessage, LiRpcResponse, LiRpcResponseHeaders, RawLiRpcMessagePayload},
@@ -48,13 +47,14 @@ where
 
 impl<M, S, C> FromConnectionMessage<S, C> for OutputStream<M>
 where
-    M: Serialize,
+    M: Serialize + Send + Sync + 'static,
     C: Clone + Send + Sync + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     type Error = LiRpcError;
 
-    fn from_connection_message(
-        _connection: &ConnectionDetails<C>,
+    async fn from_connection_message(
+        _connection: &crate::connection_details::ConnectionDetails<C>,
         message: &LiRpcMessage,
         _state: &S,
         output: &Sender<LiRpcResponse>,

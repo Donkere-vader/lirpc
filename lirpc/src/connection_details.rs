@@ -1,6 +1,6 @@
 #[derive(Default)]
 pub struct ConnectionDetails<S: Clone> {
-    pub(crate) connection_state: S,
+    pub connection_state: S,
 }
 
 impl<S: Clone> ConnectionDetails<S> {

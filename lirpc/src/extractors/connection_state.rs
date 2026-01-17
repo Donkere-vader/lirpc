@@ -12,10 +12,11 @@ pub struct ConnectionState<C>(pub C);
 impl<S, C> FromConnectionMessage<S, C> for ConnectionState<C>
 where
     C: Clone + Send + Sync + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     type Error = LiRpcError;
 
-    fn from_connection_message(
+    async fn from_connection_message(
         connection: &ConnectionDetails<C>,
         _message: &LiRpcMessage,
         _state: &S,

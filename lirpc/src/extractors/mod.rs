@@ -21,15 +21,16 @@ use crate::{
 
 pub trait FromConnectionMessage<S, C>
 where
-    Self: Sized,
+    Self: Sized + Send + 'static,
     C: Clone + Send + Sync + 'static,
+    S: Clone + Send + Sync + 'static,
 {
-    type Error: Debug;
+    type Error: Debug + Send + Sync + 'static;
 
     fn from_connection_message(
         connection: &ConnectionDetails<C>,
         message: &LiRpcMessage,
         state: &S,
         output: &Sender<LiRpcResponse>,
-    ) -> Result<Self, Self::Error>;
+    ) -> impl Future<Output = Result<Self, Self::Error>> + Send;
 }

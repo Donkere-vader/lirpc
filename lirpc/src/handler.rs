@@ -1,4 +1,4 @@
-use std::{pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use tokio::sync::mpsc::Sender;
 
@@ -30,13 +30,14 @@ macro_rules! try_extract {
             &$message,
             &$state,
             &$output,
-        ) {
+        )
+        .await
+        {
             Ok(value) => value,
             Err(e) => {
                 // Format the error into a Send-safe String outside the async block,
                 // then early-return a pinned async error future.
-                let err_string = format!("{:?}", e);
-                return Box::pin(async move { Err(LiRpcError::ExtractorError(err_string)) });
+                return Err(LiRpcError::ExtractorError(format!("{e:?}")));
             }
         }
     }};
@@ -46,9 +47,11 @@ macro_rules! impl_handler {
     (( $($Ti:ident),* )) => {
         impl<F, $($Ti,)* S, Fut, C> Handler<F, ( $($Ti,)* ), S, C> for F
         where
+            Self: Clone,
             F: Fn( $($Ti),* ) -> Fut + Send + Sync + 'static,
             C: Clone + Send + Sync + 'static,
             Fut: Future<Output = Result<(), LiRpcError>> + Send + 'static,
+            S: Clone + Send + Sync + 'static,
             $( $Ti: FromConnectionMessage<S, C>, )*
         {
             fn call(
@@ -61,9 +64,13 @@ macro_rules! impl_handler {
                 // Touch parameters to suppress unused warnings in the 0-argument case.
                 let _ = (&connection, &message, &state, &output);
 
-                Box::pin(self($(
-                    try_extract!($Ti, connection, message, state, output)
-                ),*))
+                let slf = self.clone();
+
+                Box::pin(async move {
+                    slf($(
+                        try_extract!($Ti, connection, message, state, output)
+                    ),*).await
+                })
             }
         }
     };

@@ -9,13 +9,14 @@ use crate::{
 
 pub struct State<S>(pub S);
 
-impl<S: Clone, C> FromConnectionMessage<S, C> for State<S>
+impl<S, C> FromConnectionMessage<S, C> for State<S>
 where
     C: Clone + Send + Sync + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     type Error = LiRpcError;
 
-    fn from_connection_message(
+    async fn from_connection_message(
         _connection: &ConnectionDetails<C>,
         _message: &LiRpcMessage,
         state: &S,
