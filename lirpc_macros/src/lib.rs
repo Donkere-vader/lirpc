@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, fs, path::PathBuf};
+use std::{collections::BTreeMap, env, fs, path::PathBuf};
 
 use lirpc::contracts::{
     lirpc_method_file::LiRpcMethodFile, lirpc_type_file::LiRpcTypeFile,
@@ -28,7 +28,7 @@ pub fn lirpc_type(_attrs: TokenStream, item: TokenStream) -> TokenStream {
                 SerializableType::try_from(f.ty).expect("Unsupported time cannot be used"),
             )
         })
-        .collect::<HashMap<String, SerializableType>>();
+        .collect::<BTreeMap<String, SerializableType>>();
 
     let lirpc_type = LiRpcTypeFile {
         name: struct_ident.to_string(),

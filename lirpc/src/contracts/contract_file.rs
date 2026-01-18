@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +6,7 @@ use crate::contracts::serializable_type::SerializableType;
 
 #[derive(Serialize, Deserialize)]
 pub struct LiRpcType {
-    pub fields: HashMap<String, SerializableType>, // field name: field type
+    pub fields: BTreeMap<String, SerializableType>, // field name: field type
 }
 
 #[derive(Serialize, Deserialize)]
@@ -18,6 +18,6 @@ pub struct LiRpcMethod {
 #[derive(Serialize, Deserialize)]
 pub struct ContractFile {
     pub version: String,
-    pub types: HashMap<String, LiRpcType>,
-    pub methods: HashMap<String, LiRpcMethod>,
+    pub types: BTreeMap<String, LiRpcType>,
+    pub methods: BTreeMap<String, LiRpcMethod>,
 }
