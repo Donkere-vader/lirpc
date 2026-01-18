@@ -7,6 +7,7 @@ use lirpc::{
     extractors::{self, FromConnectionMessage, Output},
     lirpc_message::{LiRpcMessage, LiRpcResponse},
 };
+use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc::Sender};
 
@@ -18,12 +19,14 @@ struct ConnectionState {
     username: Arc<Mutex<Option<User>>>,
 }
 
+#[lirpc_type]
 #[derive(Deserialize)]
 struct AuthMessage {
     username: String,
     password: String,
 }
 
+#[lirpc_type]
 #[derive(Serialize)]
 struct SecretMessage {
     secret: String,
@@ -49,6 +52,7 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
     }
 }
 
+#[lirpc_method]
 async fn login(
     extractors::ConnectionState(connection_state): extractors::ConnectionState<ConnectionState>,
     extractors::Message(message): extractors::Message<AuthMessage>,
@@ -62,6 +66,7 @@ async fn login(
     Ok(())
 }
 
+#[lirpc_method]
 async fn protected_function(
     AuthRequired(User(username)): AuthRequired,
     output: Output<SecretMessage>,

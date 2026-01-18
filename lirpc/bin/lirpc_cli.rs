@@ -11,7 +11,9 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Commands {
     Compile {
+        #[clap(help = "The name of the crate of which the build target is a part of")]
         crate_name: String,
+        #[clap(help = "The name of the build target")]
         target_name: String,
         contract_path: String,
         version: String,
