@@ -1,63 +1,73 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 
 use crate::error::LiRpcError;
 
-pub struct LiRpcMessage {
-    pub headers: LiRpcMessageHeaders,
-    pub payload: RawLiRpcMessagePayload,
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum LiRpcRequest {
+    FunctionCall(LiRpcFunctionCall),
+    CloseStream(LiRpcCloseStream),
 }
 
-pub struct LiRpcResponse {
+#[derive(Deserialize, Debug)]
+pub struct LiRpcFunctionCall {
+    pub headers: LiRpcFunctionCallHeaders,
+    pub payload: Option<RawLiRpcMessagePayload>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct LiRpcCloseStream {
+    pub stream_id: u32,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum LiRpcResponse {
+    StreamOutput(LiRpcStreamOutput),
+}
+
+#[derive(Serialize, Debug)]
+pub struct LiRpcStreamOutput {
     pub headers: LiRpcResponseHeaders,
     pub payload: RawLiRpcMessagePayload,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
 pub enum RawLiRpcMessagePayload {
-    JsonString(String),
+    Json(Value),
 }
 
-#[derive(Deserialize)]
-pub struct LiRpcMessageHeaders {
+#[derive(Deserialize, Debug)]
+pub struct LiRpcFunctionCallHeaders {
     pub id: u32,
     pub method: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct LiRpcResponseHeaders {
     pub id: u32,
 }
 
-impl TryFrom<Message> for LiRpcMessage {
+impl TryFrom<Message> for LiRpcRequest {
     type Error = LiRpcError;
 
     fn try_from(value: Message) -> Result<Self, Self::Error> {
         match value {
-            Message::Text(raw_txt) => {
-                let (headers, payload) = raw_txt
-                    .split_once("\n\n")
-                    .ok_or(LiRpcError::RawMessageCouldNotBeSplitOnHeaderAndPayload)?;
-
-                Ok(Self {
-                    headers: serde_json::from_str(headers)?,
-                    payload: RawLiRpcMessagePayload::JsonString(payload.to_string()),
-                })
-            }
+            Message::Text(raw_txt) => Ok(serde_json::from_str(&raw_txt)?),
             _ => Err(LiRpcError::UnableToParseWebsocketMessage),
         }
     }
 }
 
-impl TryFrom<LiRpcResponse> for Message {
+impl TryFrom<LiRpcStreamOutput> for Message {
     type Error = LiRpcError;
 
-    fn try_from(value: LiRpcResponse) -> Result<Self, Self::Error> {
-        let headers = serde_json::to_string(&value.headers)?;
+    fn try_from(so: LiRpcStreamOutput) -> Result<Self, Self::Error> {
+        let response = serde_json::to_string(&so)?;
 
-        match value.payload {
-            RawLiRpcMessagePayload::JsonString(raw_json) => Ok(Message::Text(Utf8Bytes::from(
-                format!("{headers}\n\n{}", raw_json),
-            ))),
-        }
+        Ok(Message::Text(Utf8Bytes::from(response)))
     }
 }

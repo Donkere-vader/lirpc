@@ -7,7 +7,10 @@ use crate::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     extractors::FromConnectionMessage,
-    lirpc_message::{LiRpcMessage, LiRpcResponse, LiRpcResponseHeaders, RawLiRpcMessagePayload},
+    lirpc_message::{
+        LiRpcFunctionCall, LiRpcResponseHeaders, LiRpcStreamOutput, RawLiRpcMessagePayload,
+    },
+    stream_manager::StreamManager,
 };
 
 pub struct Output<M>
@@ -15,7 +18,7 @@ where
     M: Serialize,
 {
     id: u32,
-    tx: Sender<LiRpcResponse>,
+    tx: Sender<LiRpcStreamOutput>,
     _marker: PhantomData<M>,
 }
 
@@ -23,7 +26,7 @@ impl<M> Output<M>
 where
     M: Serialize,
 {
-    pub fn new(id: u32, tx: Sender<LiRpcResponse>) -> Self {
+    pub fn new(id: u32, tx: Sender<LiRpcStreamOutput>) -> Self {
         Self {
             id,
             tx,
@@ -32,11 +35,10 @@ where
     }
 
     pub async fn send(self, message: M) -> Result<(), LiRpcError> {
-        let serialized_message =
-            RawLiRpcMessagePayload::JsonString(serde_json::to_string(&message)?);
+        let serialized_message = RawLiRpcMessagePayload::Json(serde_json::to_value(&message)?);
 
         self.tx
-            .send(LiRpcResponse {
+            .send(LiRpcStreamOutput {
                 headers: LiRpcResponseHeaders { id: self.id },
                 payload: serialized_message,
             })
@@ -56,9 +58,10 @@ where
 
     async fn from_connection_message(
         _connection: &ConnectionDetails<C>,
-        message: &LiRpcMessage,
+        message: &LiRpcFunctionCall,
         _state: &S,
-        output: &Sender<LiRpcResponse>,
+        output: &Sender<LiRpcStreamOutput>,
+        _stream_manager: &StreamManager,
     ) -> Result<Self, Self::Error> {
         Ok(Self::new(message.headers.id, output.clone()))
     }

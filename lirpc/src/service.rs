@@ -6,7 +6,8 @@ use crate::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     handler::Handler,
-    lirpc_message::{LiRpcMessage, LiRpcResponse},
+    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
+    stream_manager::StreamManager,
 };
 
 pub(crate) trait Service<S, C>
@@ -18,9 +19,10 @@ where
     fn call(
         &self,
         connection: Arc<ConnectionDetails<C>>,
-        message: LiRpcMessage,
+        message: LiRpcFunctionCall,
         state: S,
-        output: Sender<LiRpcResponse>,
+        output: Sender<LiRpcStreamOutput>,
+        stream_manager: StreamManager,
     ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>>;
 }
 
@@ -36,10 +38,12 @@ where
     fn call(
         &self,
         connection: Arc<ConnectionDetails<C>>,
-        message: LiRpcMessage,
+        message: LiRpcFunctionCall,
         state: S,
-        output: Sender<LiRpcResponse>,
+        output: Sender<LiRpcStreamOutput>,
+        stream_manager: StreamManager,
     ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>> {
-        self.0.call(connection, message, state, output)
+        self.0
+            .call(connection, message, state, output, stream_manager)
     }
 }

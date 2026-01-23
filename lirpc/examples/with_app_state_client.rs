@@ -1,22 +1,36 @@
+use std::time::Duration;
+
 use futures::{SinkExt, StreamExt};
+use tokio::time::sleep;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[tokio::main]
 async fn main() {
-    let (mut socket, _response) = connect_async("ws://127.0.0.1:5000").await.unwrap();
+    let (socket, _response) = connect_async("ws://127.0.0.1:5000").await.unwrap();
 
-    socket
-        .send(Message::text(format!(
-            "{}\n\n{}",
-            r#"{"id": 0, "method": "count"}"#, r#"{}"#
-        )))
-        .await
-        .unwrap();
+    let (mut tx, mut rx) = socket.split();
 
-    while let Some(msg) = socket.next().await {
-        match msg {
-            Ok(m) => println!("Received: {m}"),
-            Err(e) => eprintln!("Error: {e}"),
+    tx.send(Message::text(
+        r#"{"type": "function_call", "headers": {"id": 0, "method": "count"}}"#,
+    ))
+    .await
+    .unwrap();
+
+    tokio::spawn(async move {
+        while let Some(msg) = rx.next().await {
+            match msg {
+                Ok(m) => println!("Received: {m}"),
+                Err(e) => eprintln!("Error: {e}"),
+            }
         }
-    }
+    });
+
+    sleep(Duration::from_secs(1)).await;
+
+    tx.send(Message::Close(None))
+        .await
+        .expect("Failed to send close message");
+    tx.close()
+        .await
+        .expect("Failed to close sink of websocket connection");
 }

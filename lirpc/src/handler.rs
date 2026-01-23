@@ -6,7 +6,8 @@ use crate::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     extractors::FromConnectionMessage,
-    lirpc_message::{LiRpcMessage, LiRpcResponse},
+    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
+    stream_manager::StreamManager,
 };
 
 pub trait Handler<F, T, S, C>
@@ -17,19 +18,21 @@ where
     fn call(
         &self,
         connection: Arc<ConnectionDetails<C>>,
-        message: LiRpcMessage,
+        message: LiRpcFunctionCall,
         state: S,
-        output: Sender<LiRpcResponse>,
+        output: Sender<LiRpcStreamOutput>,
+        stream_manager: StreamManager,
     ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>>;
 }
 
 macro_rules! try_extract {
-    ($Ty:ty, $connection:expr, $message:expr, $state:expr, $output:expr) => {{
+    ($Ty:ty, $connection:expr, $message:expr, $state:expr, $output:expr, $stream_manager:expr) => {{
         match <$Ty as FromConnectionMessage<_, _>>::from_connection_message(
             &$connection,
             &$message,
             &$state,
             &$output,
+            &$stream_manager,
         )
         .await
         {
@@ -57,18 +60,19 @@ macro_rules! impl_handler {
             fn call(
                 &self,
                 connection: std::sync::Arc<ConnectionDetails<C>>,
-                message: LiRpcMessage,
+                message: LiRpcFunctionCall,
                 state: S,
-                output: Sender<LiRpcResponse>,
+                output: Sender<LiRpcStreamOutput>,
+                stream_manager: StreamManager,
             ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>> {
                 // Touch parameters to suppress unused warnings in the 0-argument case.
-                let _ = (&connection, &message, &state, &output);
+                let _ = (&connection, &message, &state, &output, &stream_manager);
 
                 let slf = self.clone();
 
                 Box::pin(async move {
                     slf($(
-                        try_extract!($Ti, connection, message, state, output)
+                        try_extract!($Ti, connection, message, state, output, stream_manager)
                     ),*).await
                 })
             }

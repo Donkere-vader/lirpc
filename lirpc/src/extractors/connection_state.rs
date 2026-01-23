@@ -4,7 +4,8 @@ use crate::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     extractors::FromConnectionMessage,
-    lirpc_message::{LiRpcMessage, LiRpcResponse},
+    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
+    stream_manager::StreamManager,
 };
 
 pub struct ConnectionState<C>(pub C);
@@ -18,9 +19,10 @@ where
 
     async fn from_connection_message(
         connection: &ConnectionDetails<C>,
-        _message: &LiRpcMessage,
+        _message: &LiRpcFunctionCall,
         _state: &S,
-        _output: &Sender<LiRpcResponse>,
+        _output: &Sender<LiRpcStreamOutput>,
+        _stream_manager: &StreamManager,
     ) -> Result<Self, Self::Error> {
         Ok(Self(connection.connection_state.clone()))
     }

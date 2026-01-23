@@ -7,5 +7,6 @@ mod handler;
 pub mod lirpc_message;
 mod server;
 mod service;
+pub mod stream_manager;
 
 pub use server::ServerBuilder;

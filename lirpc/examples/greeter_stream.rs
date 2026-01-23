@@ -1,12 +1,13 @@
-use std::{env, str::FromStr};
+use std::{env, str::FromStr, time::Duration};
 
 use lirpc::{
     ServerBuilder,
     error::LiRpcError,
-    extractors::{Message, Output},
+    extractors::{Message, OutputStream},
 };
 use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::{Deserialize, Serialize};
+use tokio::time::sleep;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
@@ -23,23 +24,25 @@ struct GreetingResponse {
 }
 
 #[lirpc_method]
-async fn greet(
+async fn greet_stream(
     Message(msg): Message<GreetingRequest>,
-    output: Output<GreetingResponse>,
+    output: OutputStream<GreetingResponse>,
 ) -> Result<(), LiRpcError> {
-    output
-        .send(GreetingResponse {
-            msg: format!("Hello {}!", msg.name),
-        })
-        .await?;
+    loop {
+        output
+            .send(GreetingResponse {
+                msg: format!("Hello {}!", msg.name),
+            })
+            .await?;
 
-    Ok(())
+        sleep(Duration::from_secs(1)).await;
+    }
 }
 
 #[tokio::main]
 async fn main() {
     let server = ServerBuilder::new()
-        .register_handler("greet".to_string(), greet)
+        .register_handler("greet_stream".to_string(), greet_stream)
         .build();
 
     tracing::subscriber::set_global_default(

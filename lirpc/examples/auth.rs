@@ -1,15 +1,18 @@
-use std::sync::Arc;
+use std::{env, str::FromStr, sync::Arc};
 
 use lirpc::{
     ServerBuilder,
     connection_details::ConnectionDetails,
     error::LiRpcError,
     extractors::{self, FromConnectionMessage, Output},
-    lirpc_message::{LiRpcMessage, LiRpcResponse},
+    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
+    stream_manager::StreamManager,
 };
 use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc::Sender};
+use tracing::{Level, info};
+use tracing_subscriber::FmtSubscriber;
 
 #[derive(Clone)]
 struct User(String);
@@ -39,9 +42,10 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
 
     async fn from_connection_message(
         connection: &ConnectionDetails<ConnectionState>,
-        _message: &LiRpcMessage,
+        _message: &LiRpcFunctionCall,
         _state: &(),
-        _output: &Sender<LiRpcResponse>,
+        _output: &Sender<LiRpcStreamOutput>,
+        _stream_manager: &StreamManager,
     ) -> Result<Self, Self::Error> {
         let username_lock = connection.connection_state.username.lock().await;
 
@@ -59,9 +63,11 @@ async fn login(
 ) -> Result<(), LiRpcError> {
     if &message.password == "password" {
         let mut username_lock = connection_state.username.lock().await;
-        *username_lock = Some(User(message.username));
+        *username_lock = Some(User(message.username.to_string()));
         drop(username_lock);
     }
+
+    info!("user '{}' has authenticated", message.username);
 
     Ok(())
 }
@@ -71,7 +77,7 @@ async fn protected_function(
     AuthRequired(User(username)): AuthRequired,
     output: Output<SecretMessage>,
 ) -> Result<(), LiRpcError> {
-    println!("[INFO] user '{username}' has requested the secret");
+    info!("user '{username}' has requested the secret");
 
     output
         .send(SecretMessage {
@@ -88,6 +94,18 @@ async fn main() {
         .register_handler("login".to_string(), login)
         .register_handler("protected_function".to_string(), protected_function)
         .build_with_connection_state(ConnectionState::default);
+
+    tracing::subscriber::set_global_default(
+        FmtSubscriber::builder()
+            .with_max_level(
+                env::var("LOG_LEVEL")
+                    .ok()
+                    .and_then(|l| Level::from_str(&l).ok())
+                    .unwrap_or(Level::INFO),
+            )
+            .finish(),
+    )
+    .expect("Failed to set global tracing subscriber");
 
     server
         .serve("127.0.0.1:5000")

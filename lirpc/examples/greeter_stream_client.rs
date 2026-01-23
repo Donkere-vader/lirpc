@@ -12,7 +12,7 @@ async fn main() {
 
     tx
         .send(Message::text(
-            r#"{"type":"function_call", "headers": {"id": 1, "method": "greet"}, "payload": {"name": "Cas"}}"#
+            r#"{"type":"function_call", "headers": {"id": 1, "method": "greet_stream"}, "payload": {"name": "Cas"}}"#
         ))
         .await
         .unwrap();
@@ -26,7 +26,11 @@ async fn main() {
         }
     });
 
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(5)).await;
+
+    tx.send(Message::text(r#"{"type":"close_stream", "stream_id": 1}"#))
+        .await
+        .unwrap();
 
     tx.send(Message::Close(None))
         .await

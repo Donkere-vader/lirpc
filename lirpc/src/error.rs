@@ -1,6 +1,6 @@
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 
-use crate::lirpc_message::LiRpcResponse;
+use crate::lirpc_message::LiRpcStreamOutput;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LiRpcError {
@@ -14,8 +14,12 @@ pub enum LiRpcError {
     RawMessageCouldNotBeSplitOnHeaderAndPayload,
     #[error("Method {0} not found")]
     HandlerNotFound(String),
-    #[error("SendError: {0}")]
-    SendError(#[from] mpsc::error::SendError<LiRpcResponse>),
+    #[error("mpsc SendError: {0}")]
+    MpscSendError(#[from] mpsc::error::SendError<LiRpcStreamOutput>),
+    #[error("watch SendError: {0}")]
+    WatchSendError(#[from] watch::error::SendError<bool>),
     #[error("Extractor error: {0}")]
     ExtractorError(String),
+    #[error("Output stream was closed")]
+    OutputStreamClosed,
 }

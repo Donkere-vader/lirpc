@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::{path::Path, time::SystemTime};
 
 use glob::glob;
 use tokio::fs;
@@ -70,6 +70,29 @@ pub async fn compile(
     Ok(())
 }
 
+/// Checks if the given path is a directory,
+/// and if the directory contains a sub directory with the exact name "out"
+///
+/// # Returns
+/// `Ok(true)` if the answer is yes.
+async fn dir_contains_out_dir(path: impl AsRef<Path>) -> Result<bool, CompileError> {
+    let mut directory_listing = fs::read_dir(path.as_ref()).await?;
+
+    while let Some(item) = directory_listing.next_entry().await? {
+        let filename = item
+            .file_name()
+            .to_str()
+            .ok_or(CompileError::InvalidFileName)?
+            .to_string();
+
+        if filename == "out" && item.path().is_dir() {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
 async fn latest_out_dir(crate_name: &str, release: bool) -> Result<String, CompileError> {
     let build_folder = format!("target/{}/build", if release { "release" } else { "debug" });
 
@@ -87,7 +110,10 @@ async fn latest_out_dir(crate_name: &str, release: bool) -> Result<String, Compi
             .ok_or(CompileError::InvalidFileName)?
             .to_string();
 
-        if !filename.starts_with(crate_name) {
+        if !filename.starts_with(crate_name)
+            || !item.path().is_dir()
+            || !dir_contains_out_dir(item.path()).await?
+        {
             continue;
         }
 

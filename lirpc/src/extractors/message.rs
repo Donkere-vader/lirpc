@@ -5,7 +5,8 @@ use crate::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     extractors::FromConnectionMessage,
-    lirpc_message::{LiRpcMessage, LiRpcResponse, RawLiRpcMessagePayload},
+    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput, RawLiRpcMessagePayload},
+    stream_manager::StreamManager,
 };
 
 pub struct Message<M>(pub M)
@@ -22,14 +23,17 @@ where
 
     async fn from_connection_message(
         _connection: &ConnectionDetails<C>,
-        message: &LiRpcMessage,
+        message: &LiRpcFunctionCall,
         _state: &S,
-        _output: &Sender<LiRpcResponse>,
+        _output: &Sender<LiRpcStreamOutput>,
+        _stream_manager: &StreamManager,
     ) -> Result<Self, Self::Error> {
         match &message.payload {
-            RawLiRpcMessagePayload::JsonString(json_string) => {
-                Ok(Self(serde_json::from_str(json_string)?))
+            Some(RawLiRpcMessagePayload::Json(json_value)) => {
+                Ok(Self(serde_json::from_value(json_value.clone())?))
             }
+            // TODO: probably not very clean to just parse an empty string here
+            None => Ok(Self(serde_json::from_str("")?)),
         }
     }
 }

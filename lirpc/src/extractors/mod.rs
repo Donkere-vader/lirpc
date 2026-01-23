@@ -16,7 +16,8 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     connection_details::ConnectionDetails,
-    lirpc_message::{LiRpcMessage, LiRpcResponse},
+    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
+    stream_manager::StreamManager,
 };
 
 pub trait FromConnectionMessage<S, C>
@@ -29,8 +30,9 @@ where
 
     fn from_connection_message(
         connection: &ConnectionDetails<C>,
-        message: &LiRpcMessage,
+        message: &LiRpcFunctionCall,
         state: &S,
-        output: &Sender<LiRpcResponse>,
+        output: &Sender<LiRpcStreamOutput>,
+        stream_manager: &StreamManager,
     ) -> impl Future<Output = Result<Self, Self::Error>> + Send;
 }

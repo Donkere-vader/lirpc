@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{env, str::FromStr, sync::Arc};
 
 use lirpc::{
     ServerBuilder,
@@ -8,6 +8,8 @@ use lirpc::{
 use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::Serialize;
 use tokio::sync::Mutex;
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Clone)] // State used in the server must implement Clone
 struct AppState {
@@ -40,6 +42,18 @@ async fn main() {
     let server = ServerBuilder::new()
         .register_handler("count".to_string(), count)
         .build_with_state(AppState::default());
+
+    tracing::subscriber::set_global_default(
+        FmtSubscriber::builder()
+            .with_max_level(
+                env::var("LOG_LEVEL")
+                    .ok()
+                    .and_then(|l| Level::from_str(&l).ok())
+                    .unwrap_or(Level::INFO),
+            )
+            .finish(),
+    )
+    .expect("Failed to set global tracing subscriber");
 
     server
         .serve("127.0.0.1:5000")

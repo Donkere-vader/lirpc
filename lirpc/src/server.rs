@@ -6,14 +6,15 @@ use tokio::{
     sync::mpsc,
 };
 use tokio_tungstenite::{WebSocketStream, accept_async, tungstenite::Message};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 use crate::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     handler::Handler,
-    lirpc_message::{LiRpcMessage, LiRpcResponse},
+    lirpc_message::{LiRpcRequest, LiRpcStreamOutput},
     service::{HandlerService, Service},
+    stream_manager::StreamManager,
 };
 
 #[derive(Default)]
@@ -115,17 +116,25 @@ where
         websocket_message: Message,
         state: S,
         connection: Arc<ConnectionDetails<C>>,
-        output: mpsc::Sender<LiRpcResponse>,
+        output: mpsc::Sender<LiRpcStreamOutput>,
+        stream_manager: StreamManager,
     ) -> Result<(), LiRpcError> {
-        let message = LiRpcMessage::try_from(websocket_message)?;
+        let message = LiRpcRequest::try_from(websocket_message)?;
 
-        let handler = handlers
-            .get(&message.headers.method)
-            .ok_or(LiRpcError::HandlerNotFound(
-                message.headers.method.to_string(),
-            ))?;
+        debug!("Received message: {message:?}");
 
-        handler.call(connection, message, state, output).await?;
+        match message {
+            LiRpcRequest::FunctionCall(fc) => {
+                let handler = handlers
+                    .get(&fc.headers.method)
+                    .ok_or(LiRpcError::HandlerNotFound(fc.headers.method.to_string()))?;
+
+                handler
+                    .call(connection, fc, state, output, stream_manager)
+                    .await?;
+            }
+            LiRpcRequest::CloseStream(cs) => stream_manager.close_stream(cs.stream_id).await?,
+        }
 
         Ok(())
     }
@@ -140,6 +149,7 @@ where
         let (tx, mut rx) = mpsc::channel(10);
 
         let connection_details = Arc::new(new_connection_details);
+        let stream_manager = StreamManager::default();
 
         loop {
             tokio::select! {
@@ -153,15 +163,19 @@ where
                             let tx_clone = tx.clone();
                             let state_clone = state.clone();
                             let connection_clone = connection_details.clone();
+                            let stream_manager_clone = stream_manager.clone();
 
                             tokio::spawn(async move {
-                                if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, connection_clone, tx_clone).await {
-                                    error!("Error handling message: {e}");
+                                if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, connection_clone, tx_clone, stream_manager_clone).await {
+                                    match e {
+                                        LiRpcError::OutputStreamClosed => {},
+                                        _ => error!("Error handling message: {e}"),
+                                    };
                                 }
                             });
                         }
                         Some(Err(e)) => {
-                            error!("Error receiving message: {e}");
+                            debug!("Error receiving message: {e}");
                             break;
                         }
                         None => break,
@@ -172,13 +186,13 @@ where
                     let serialized_response = match response.try_into() {
                         Ok(r) => r,
                         Err(e) => {
-                            error!("Error serializing response: {e}");
+                            debug!("Error serializing response: {e}");
                             break;
                         }
                     };
 
                     if let Err(e) = ws_sender.send(serialized_response).await {
-                        error!("Error sending response: {e}");
+                        debug!("Error sending response: {e}");
                         break;
                     }
                 }

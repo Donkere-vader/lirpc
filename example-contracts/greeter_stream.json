@@ -17,7 +17,7 @@
     }
   },
   "methods": {
-    "greet": {
+    "greet_stream": {
       "output": {
         "type": "custom",
         "name": "GreetingResponse"
