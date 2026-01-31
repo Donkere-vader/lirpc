@@ -32,10 +32,18 @@ jobs:
       - name: Build
         run: cargo build --verbose
 
+      - name: Build examples
+        run: cargo build --examples --verbose
+
       - name: Lint
         run: |
           cargo fmt --all -- --check
           cargo clippy -- -D warnings
+
+      - name: Lint examples
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --examples -- -D warnings
 
       - name: Run tests
         run: cargo test --verbose
