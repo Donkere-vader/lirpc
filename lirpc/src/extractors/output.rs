@@ -8,7 +8,8 @@ use crate::{
     error::LiRpcError,
     extractors::FromConnectionMessage,
     lirpc_message::{
-        LiRpcFunctionCall, LiRpcResponseHeaders, LiRpcStreamOutput, RawLiRpcMessagePayload,
+        LiRpcFunctionCall, LiRpcResponseHeaders, LiRpcResponseResult, LiRpcStreamOutput,
+        RawLiRpcMessagePayload,
     },
     stream_manager::StreamManager,
 };
@@ -39,8 +40,11 @@ where
 
         self.tx
             .send(LiRpcStreamOutput {
-                headers: LiRpcResponseHeaders { id: self.id },
-                payload: serialized_message,
+                headers: LiRpcResponseHeaders {
+                    id: self.id,
+                    result: LiRpcResponseResult::Ok,
+                },
+                payload: Some(serialized_message),
             })
             .await?;
 

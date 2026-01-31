@@ -31,7 +31,7 @@ pub enum LiRpcResponse {
 #[derive(Serialize, Debug)]
 pub struct LiRpcStreamOutput {
     pub headers: LiRpcResponseHeaders,
-    pub payload: RawLiRpcMessagePayload,
+    pub payload: Option<RawLiRpcMessagePayload>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,8 +47,15 @@ pub struct LiRpcFunctionCallHeaders {
 }
 
 #[derive(Serialize, Debug)]
+pub enum LiRpcResponseResult {
+    Ok,
+    Err,
+}
+
+#[derive(Serialize, Debug)]
 pub struct LiRpcResponseHeaders {
     pub id: u32,
+    pub result: LiRpcResponseResult,
 }
 
 impl TryFrom<Message> for LiRpcRequest {

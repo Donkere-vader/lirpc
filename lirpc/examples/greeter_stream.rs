@@ -23,11 +23,23 @@ struct GreetingResponse {
     msg: String,
 }
 
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum MyError {
+    ServerError,
+}
+
+impl From<LiRpcError> for MyError {
+    fn from(_: LiRpcError) -> Self {
+        Self::ServerError
+    }
+}
+
 #[lirpc_method]
 async fn greet_stream(
     Message(msg): Message<GreetingRequest>,
     output: OutputStream<GreetingResponse>,
-) -> Result<(), LiRpcError> {
+) -> Result<(), MyError> {
     loop {
         output
             .send(GreetingResponse {

@@ -22,11 +22,23 @@ struct CountResponse {
     count: u64,
 }
 
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum MyError {
+    ServerError,
+}
+
+impl From<LiRpcError> for MyError {
+    fn from(_: LiRpcError) -> Self {
+        Self::ServerError
+    }
+}
+
 #[lirpc_method]
 async fn count(
     State(app_state): State<AppState>,
     output: Output<CountResponse>,
-) -> Result<(), LiRpcError> {
+) -> Result<(), MyError> {
     let mut counter_lock = app_state.count.lock().await;
     *counter_lock += 1;
     let value = *counter_lock;

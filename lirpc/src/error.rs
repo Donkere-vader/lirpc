@@ -1,6 +1,6 @@
 use tokio::sync::{mpsc, watch};
 
-use crate::lirpc_message::LiRpcStreamOutput;
+use crate::lirpc_message::{LiRpcStreamOutput, RawLiRpcMessagePayload};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LiRpcError {
@@ -22,4 +22,6 @@ pub enum LiRpcError {
     ExtractorError(String),
     #[error("Output stream was closed")]
     OutputStreamClosed,
+    #[error("Error in handler: {0:?}")]
+    ErrorInHandler(RawLiRpcMessagePayload),
 }

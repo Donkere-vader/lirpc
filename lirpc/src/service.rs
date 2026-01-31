@@ -26,14 +26,15 @@ where
     ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>>;
 }
 
-pub(crate) struct HandlerService<F, T, S, C>(pub Box<dyn Handler<F, T, S, C>>);
+pub(crate) struct HandlerService<F, T, S, C, E>(pub Box<dyn Handler<F, T, S, C, E>>);
 
-impl<F, T, S, C> Service<S, C> for HandlerService<F, T, S, C>
+impl<F, T, S, C, E> Service<S, C> for HandlerService<F, T, S, C, E>
 where
     S: Send + Sync + 'static,
     C: Clone + Send + Sync + 'static,
     F: 'static,
     T: 'static,
+    E: 'static,
 {
     fn call(
         &self,

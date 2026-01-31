@@ -51,8 +51,21 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
 
         match username_lock.as_ref() {
             Some(user) => Ok(Self(user.clone())),
-            None => Err("Not authenticated in".to_string()),
+            None => Err("Not authenticated".to_string()),
         }
+    }
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum MyError {
+    ServerError,
+    AuthFailure,
+}
+
+impl From<LiRpcError> for MyError {
+    fn from(_: LiRpcError) -> Self {
+        Self::ServerError
     }
 }
 
@@ -60,23 +73,25 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
 async fn login(
     extractors::ConnectionState(connection_state): extractors::ConnectionState<ConnectionState>,
     extractors::Message(message): extractors::Message<AuthMessage>,
-) -> Result<(), LiRpcError> {
+) -> Result<(), MyError> {
     if &message.password == "password" {
         let mut username_lock = connection_state.username.lock().await;
         *username_lock = Some(User(message.username.to_string()));
         drop(username_lock);
+
+        info!("user '{}' has authenticated", message.username);
+
+        Ok(())
+    } else {
+        Err(MyError::AuthFailure)
     }
-
-    info!("user '{}' has authenticated", message.username);
-
-    Ok(())
 }
 
 #[lirpc_method]
 async fn protected_function(
     AuthRequired(User(username)): AuthRequired,
     output: Output<SecretMessage>,
-) -> Result<(), LiRpcError> {
+) -> Result<(), MyError> {
     info!("user '{username}' has requested the secret");
 
     output

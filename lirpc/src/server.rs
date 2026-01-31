@@ -12,7 +12,7 @@ use crate::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     handler::Handler,
-    lirpc_message::{LiRpcRequest, LiRpcStreamOutput},
+    lirpc_message::{LiRpcRequest, LiRpcResponseHeaders, LiRpcResponseResult, LiRpcStreamOutput},
     service::{HandlerService, Service},
     stream_manager::StreamManager,
 };
@@ -36,14 +36,15 @@ where
     /// Register a method/handler to this service
     /// The `name` given to the handler here is what a client
     /// will use to end up calling this handler/method
-    pub fn register_handler<F, T>(
+    pub fn register_handler<F, T, E>(
         mut self,
         name: String,
-        handler: impl Handler<F, T, S, C> + 'static,
+        handler: impl Handler<F, T, S, C, E> + 'static,
     ) -> Self
     where
         F: 'static,
         T: 'static,
+        E: 'static,
         C: Default + Send + Sync + 'static,
     {
         self.handlers
@@ -129,14 +130,35 @@ where
                     .get(&fc.headers.method)
                     .ok_or(LiRpcError::HandlerNotFound(fc.headers.method.to_string()))?;
 
-                handler
-                    .call(connection, fc, state, output, stream_manager)
-                    .await?;
-            }
-            LiRpcRequest::CloseStream(cs) => stream_manager.close_stream(cs.stream_id).await?,
-        }
+                let message_id = fc.headers.id;
 
-        Ok(())
+                let invocation = handler
+                    .call(connection, fc, state, output.clone(), stream_manager)
+                    .await;
+
+                if let Err(lirpc_error) = invocation {
+                    match lirpc_error {
+                        LiRpcError::ErrorInHandler(handler_error) => {
+                            output
+                                .send(LiRpcStreamOutput {
+                                    headers: LiRpcResponseHeaders {
+                                        id: message_id,
+                                        result: LiRpcResponseResult::Err,
+                                    },
+                                    payload: Some(handler_error),
+                                })
+                                .await?;
+
+                            Ok(())
+                        }
+                        _ => Err(lirpc_error),
+                    }
+                } else {
+                    Ok(())
+                }
+            }
+            LiRpcRequest::CloseStream(cs) => stream_manager.close_stream(cs.stream_id).await,
+        }
     }
 
     async fn handle_connection(
