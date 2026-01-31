@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 
 use crate::error::LiRpcError;
@@ -76,5 +76,15 @@ impl TryFrom<LiRpcStreamOutput> for Message {
         let response = serde_json::to_string(&so)?;
 
         Ok(Message::Text(Utf8Bytes::from(response)))
+    }
+}
+
+pub trait IntoRawLiRpcResponsePayload {
+    fn into(&self) -> RawLiRpcMessagePayload;
+}
+
+impl IntoRawLiRpcResponsePayload for () {
+    fn into(&self) -> RawLiRpcMessagePayload {
+        RawLiRpcMessagePayload::Json(json!({}))
     }
 }

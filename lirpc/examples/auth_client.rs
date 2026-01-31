@@ -18,7 +18,7 @@ async fn main() {
         .unwrap();
 
     tx.send(Message::text(
-        r#"{"type": "function_call", "headers": {"id": 1, "method": "protected_function"}}"#,
+        r#"{"type": "function_call", "headers": {"id": 2, "method": "protected_function"}}"#,
     ))
     .await
     .unwrap();

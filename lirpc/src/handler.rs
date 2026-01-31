@@ -1,5 +1,4 @@
-use crate::lirpc_message::RawLiRpcMessagePayload;
-use serde::Serialize;
+use crate::lirpc_message::IntoRawLiRpcResponsePayload;
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use tokio::sync::mpsc::Sender;
@@ -42,7 +41,9 @@ macro_rules! try_extract {
             Err(e) => {
                 // Format the error into a Send-safe String outside the async block,
                 // then early-return a pinned async error future.
-                return Err(LiRpcError::ExtractorError(format!("{e:?}")));
+                return Err(LiRpcError::ExtractorError(
+                    IntoRawLiRpcResponsePayload::into(&e),
+                ));
             }
         }
     }};
@@ -56,7 +57,7 @@ macro_rules! impl_handler {
             F: Fn( $($Ti),* ) -> Fut + Send + Sync + 'static,
             C: Clone + Send + Sync + 'static,
             Fut: Future<Output = Result<(), E>> + Send + 'static,
-            E: Serialize,
+            E: IntoRawLiRpcResponsePayload,
             S: Clone + Send + Sync + 'static,
             $( $Ti: FromConnectionMessage<S, C>, )*
         {
@@ -80,9 +81,9 @@ macro_rules! impl_handler {
 
                     match invoke_result {
                         Ok(r) => Ok(r),
-                        Err(e) => Err(LiRpcError::ErrorInHandler(RawLiRpcMessagePayload::Json(
-                            serde_json::to_value(e)?
-                        ))),
+                        Err(e) => Err(LiRpcError::ErrorInHandler(
+                            IntoRawLiRpcResponsePayload::into(&e)
+                        )),
                     }
                 })
             }

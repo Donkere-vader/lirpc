@@ -4,9 +4,11 @@ use lirpc::{
     ServerBuilder,
     error::LiRpcError,
     extractors::{Message, Output},
+    lirpc_message::{IntoRawLiRpcResponsePayload, RawLiRpcMessagePayload},
 };
 use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
@@ -26,6 +28,14 @@ struct GreetingResponse {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum MyError {
     ServerError,
+}
+
+impl IntoRawLiRpcResponsePayload for MyError {
+    fn into(&self) -> RawLiRpcMessagePayload {
+        match self {
+            MyError::ServerError => RawLiRpcMessagePayload::Json(json!({"error": "server_error"})),
+        }
+    }
 }
 
 impl From<LiRpcError> for MyError {

@@ -4,9 +4,11 @@ use lirpc::{
     ServerBuilder,
     error::LiRpcError,
     extractors::{Output, State},
+    lirpc_message::{IntoRawLiRpcResponsePayload, RawLiRpcMessagePayload},
 };
 use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::Serialize;
+use serde_json::json;
 use tokio::sync::Mutex;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -31,6 +33,14 @@ pub enum MyError {
 impl From<LiRpcError> for MyError {
     fn from(_: LiRpcError) -> Self {
         Self::ServerError
+    }
+}
+
+impl IntoRawLiRpcResponsePayload for MyError {
+    fn into(&self) -> RawLiRpcMessagePayload {
+        match self {
+            MyError::ServerError => RawLiRpcMessagePayload::Json(json!({"error": "server_error"})),
+        }
     }
 }
 

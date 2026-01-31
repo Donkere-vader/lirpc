@@ -5,11 +5,14 @@ use lirpc::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     extractors::{self, FromConnectionMessage, Output},
-    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
+    lirpc_message::{
+        IntoRawLiRpcResponsePayload, LiRpcFunctionCall, LiRpcStreamOutput, RawLiRpcMessagePayload,
+    },
     stream_manager::StreamManager,
 };
 use lirpc_macros::{lirpc_method, lirpc_type};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tokio::sync::{Mutex, mpsc::Sender};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -38,7 +41,7 @@ struct SecretMessage {
 struct AuthRequired(pub User);
 
 impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
-    type Error = String;
+    type Error = MyError;
 
     async fn from_connection_message(
         connection: &ConnectionDetails<ConnectionState>,
@@ -51,7 +54,7 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
 
         match username_lock.as_ref() {
             Some(user) => Ok(Self(user.clone())),
-            None => Err("Not authenticated".to_string()),
+            None => Err(MyError::Unauthenticated),
         }
     }
 }
@@ -61,11 +64,24 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
 pub enum MyError {
     ServerError,
     AuthFailure,
+    Unauthenticated,
 }
 
 impl From<LiRpcError> for MyError {
     fn from(_: LiRpcError) -> Self {
         Self::ServerError
+    }
+}
+
+impl IntoRawLiRpcResponsePayload for MyError {
+    fn into(&self) -> RawLiRpcMessagePayload {
+        match self {
+            MyError::ServerError => RawLiRpcMessagePayload::Json(json!({"error": "server_error"})),
+            MyError::AuthFailure => RawLiRpcMessagePayload::Json(json!({"error": "auth_failure"})),
+            MyError::Unauthenticated => {
+                RawLiRpcMessagePayload::Json(json!({"error": "unauthenticated"}))
+            }
+        }
     }
 }
 

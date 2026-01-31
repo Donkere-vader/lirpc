@@ -138,14 +138,14 @@ where
 
                 if let Err(lirpc_error) = invocation {
                     match lirpc_error {
-                        LiRpcError::ErrorInHandler(handler_error) => {
+                        LiRpcError::ErrorInHandler(error) | LiRpcError::ExtractorError(error) => {
                             output
                                 .send(LiRpcStreamOutput {
                                     headers: LiRpcResponseHeaders {
                                         id: message_id,
                                         result: LiRpcResponseResult::Err,
                                     },
-                                    payload: Some(handler_error),
+                                    payload: Some(error),
                                 })
                                 .await?;
 

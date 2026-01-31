@@ -4,8 +4,6 @@ mod output;
 mod output_stream;
 mod state;
 
-use std::fmt::Debug;
-
 pub use connection_state::ConnectionState;
 pub use message::Message;
 pub use output::Output;
@@ -16,7 +14,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     connection_details::ConnectionDetails,
-    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
+    lirpc_message::{IntoRawLiRpcResponsePayload, LiRpcFunctionCall, LiRpcStreamOutput},
     stream_manager::StreamManager,
 };
 
@@ -26,7 +24,7 @@ where
     C: Clone + Send + Sync + 'static,
     S: Clone + Send + Sync + 'static,
 {
-    type Error: Debug + Send + Sync + 'static;
+    type Error: IntoRawLiRpcResponsePayload + Send + Sync + 'static;
 
     fn from_connection_message(
         connection: &ConnectionDetails<C>,
