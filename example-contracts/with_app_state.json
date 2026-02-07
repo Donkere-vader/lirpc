@@ -15,7 +15,14 @@
         "type": "custom",
         "name": "CountResponse"
       },
-      "message": null
+      "message": null,
+      "return_type": {
+        "type": "result",
+        "err_variant": {
+          "type": "custom",
+          "name": "MyError"
+        }
+      }
     }
   }
 }

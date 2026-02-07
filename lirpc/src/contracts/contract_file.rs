@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::contracts::serializable_type::SerializableType;
+use crate::contracts::{lirpc_method_file::LiRpcMethodReturn, serializable_type::SerializableType};
 
 #[derive(Serialize, Deserialize)]
 pub struct LiRpcType {
@@ -13,6 +13,7 @@ pub struct LiRpcType {
 pub struct LiRpcMethod {
     pub output: Option<SerializableType>,
     pub message: Option<SerializableType>,
+    pub return_type: LiRpcMethodReturn,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -7,4 +7,12 @@ pub struct LiRpcMethodFile {
     pub name: String,
     pub output: Option<SerializableType>,
     pub message: Option<SerializableType>,
+    pub return_type: LiRpcMethodReturn,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", content = "err_variant")]
+pub enum LiRpcMethodReturn {
+    None,
+    Result(SerializableType),
 }

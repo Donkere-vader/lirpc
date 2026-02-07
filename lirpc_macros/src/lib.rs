@@ -1,13 +1,14 @@
 use std::{collections::BTreeMap, env, fs, path::PathBuf};
 
 use lirpc::contracts::{
-    lirpc_method_file::LiRpcMethodFile, lirpc_type_file::LiRpcTypeFile,
+    lirpc_method_file::{LiRpcMethodFile, LiRpcMethodReturn},
+    lirpc_type_file::LiRpcTypeFile,
     serializable_type::SerializableType,
 };
 use proc_macro::TokenStream;
 use quote::quote;
 use serde::Serialize;
-use syn::{ItemFn, ItemStruct, parse_macro_input};
+use syn::{ItemFn, ItemStruct, ReturnType, parse_macro_input};
 
 #[proc_macro_attribute]
 pub fn lirpc_type(_attrs: TokenStream, item: TokenStream) -> TokenStream {
@@ -96,10 +97,25 @@ pub fn lirpc_method(_attrs: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
+    let return_type = match method_signature.output {
+        ReturnType::Default => LiRpcMethodReturn::None,
+        ReturnType::Type(_, t) => {
+            let t = SerializableType::try_from(*t).expect("Error parsing method's return type");
+
+            match t {
+                SerializableType::Result { ok: _, err } => LiRpcMethodReturn::Result(*err),
+                _ => panic!(
+                    "A lirpc method should return either the (default) union type or a `Result<(), E>`."
+                ),
+            }
+        }
+    };
+
     let lirpc_method = LiRpcMethodFile {
         name: method_signature.ident.to_string(),
         output,
         message,
+        return_type,
     };
 
     persist(&format!("method-{}.json", lirpc_method.name), &lirpc_method)

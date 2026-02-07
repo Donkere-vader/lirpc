@@ -54,6 +54,7 @@ pub async fn compile(
                     LiRpcMethod {
                         message: m.message,
                         output: m.output,
+                        return_type: m.return_type,
                     },
                 )
             })
