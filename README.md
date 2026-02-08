@@ -46,6 +46,7 @@ struct GreetingResponse {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
+#[lirpc_type]
 pub enum MyError {
     ServerError,
 }
@@ -101,6 +102,7 @@ async fn main() {
         .await
         .expect("Error serving server");
 }
+
 ```
 
 Client example:

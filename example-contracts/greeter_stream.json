@@ -16,6 +16,12 @@
           "type": "string"
         }
       }
+    },
+    "MyError": {
+      "type": "enum",
+      "variants": {
+        "ServerError": {}
+      }
     }
   },
   "methods": {

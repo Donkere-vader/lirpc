@@ -26,6 +26,7 @@ struct CountResponse {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
+#[lirpc_type]
 pub enum MyError {
     ServerError,
 }
