@@ -1,11 +1,9 @@
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 
-use crate::contracts::serializable_type::SerializableType;
+use crate::contracts::contract_file::LiRpcType;
 
 #[derive(Serialize, Deserialize)]
 pub struct LiRpcTypeFile {
     pub name: String,
-    pub fields: BTreeMap<String, SerializableType>, // field name: field type
+    pub r#type: LiRpcType,
 }

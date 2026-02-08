@@ -2,6 +2,7 @@
   "version": "0.1.0",
   "types": {
     "CountResponse": {
+      "type": "struct",
       "fields": {
         "count": {
           "type": "u64"

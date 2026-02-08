@@ -4,7 +4,7 @@ use glob::glob;
 use tokio::fs;
 
 use crate::contracts::{
-    contract_file::{ContractFile, LiRpcMethod, LiRpcType},
+    contract_file::{ContractFile, LiRpcMethod},
     error::CompileError,
     lirpc_method_file::LiRpcMethodFile,
     lirpc_type_file::LiRpcTypeFile,
@@ -42,10 +42,7 @@ pub async fn compile(
 
     let contract = ContractFile {
         version,
-        types: type_files
-            .into_iter()
-            .map(|t| (t.name, LiRpcType { fields: t.fields }))
-            .collect(),
+        types: type_files.into_iter().map(|t| (t.name, t.r#type)).collect(),
         methods: method_files
             .into_iter()
             .map(|m| {

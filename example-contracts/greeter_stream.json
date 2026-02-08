@@ -2,6 +2,7 @@
   "version": "0.1.0",
   "types": {
     "GreetingRequest": {
+      "type": "struct",
       "fields": {
         "name": {
           "type": "string"
@@ -9,6 +10,7 @@
       }
     },
     "GreetingResponse": {
+      "type": "struct",
       "fields": {
         "msg": {
           "type": "string"

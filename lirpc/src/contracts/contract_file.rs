@@ -5,8 +5,14 @@ use serde::{Deserialize, Serialize};
 use crate::contracts::{lirpc_method_file::LiRpcMethodReturn, serializable_type::SerializableType};
 
 #[derive(Serialize, Deserialize)]
-pub struct LiRpcType {
-    pub fields: BTreeMap<String, SerializableType>, // field name: field type
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum LiRpcType {
+    Struct {
+        fields: BTreeMap<String, SerializableType>, // field name: field type
+    },
+    Enum {
+        variants: BTreeMap<String, BTreeMap<String, SerializableType>>,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
