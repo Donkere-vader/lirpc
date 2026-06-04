@@ -191,7 +191,7 @@ where
                                 if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, connection_clone, tx_clone, stream_manager_clone).await {
                                     match e {
                                         LiRpcError::OutputStreamClosed => {},
-                                        _ => error!("Error handling message: {e}"),
+                                        _ => error!("Error during handling of message: {e}"),
                                     };
                                 }
                             });
