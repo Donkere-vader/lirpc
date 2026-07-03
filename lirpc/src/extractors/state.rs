@@ -1,5 +1,5 @@
 use crate::{
-    connection_details::ConnectionDetails, error::LiRpcError, extractors::FromConnectionMessage,
+    connection_details::ConnectionDetails, extractors::FromConnectionMessage,
     lirpc_message::LiRpcRequest,
 };
 
@@ -10,7 +10,7 @@ where
     C: Clone + Send + Sync + 'static,
     S: Clone + Send + Sync + 'static,
 {
-    type Error = LiRpcError;
+    type Error = ();
 
     async fn from_connection_message(
         _connection: &ConnectionDetails<C>,

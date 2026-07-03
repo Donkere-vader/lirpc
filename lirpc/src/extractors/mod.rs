@@ -1,4 +1,5 @@
 mod connection_state;
+pub(super) mod error;
 mod message;
 mod state;
 
@@ -6,7 +7,9 @@ pub use connection_state::ConnectionState;
 pub use message::Message;
 pub use state::State;
 
-use crate::{connection_details::ConnectionDetails, lirpc_message::LiRpcRequest};
+use crate::{
+    connection_details::ConnectionDetails, lirpc_message::LiRpcRequest, translatable::Translatable,
+};
 
 pub trait FromConnectionMessage<S, C>
 where
@@ -14,7 +17,7 @@ where
     C: Clone + Send + Sync + 'static,
     S: Clone + Send + Sync + 'static,
 {
-    type Error: Send + Sync + 'static;
+    type Error: Translatable + Send + Sync + 'static;
 
     fn from_connection_message(
         connection: &ConnectionDetails<C>,

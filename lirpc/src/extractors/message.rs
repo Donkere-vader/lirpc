@@ -2,8 +2,7 @@ use serde::Deserialize;
 
 use crate::{
     connection_details::ConnectionDetails,
-    error::LiRpcError,
-    extractors::FromConnectionMessage,
+    extractors::{FromConnectionMessage, error::LiRpcExtractorError},
     lirpc_message::{LiRpcPayload, LiRpcRequest},
 };
 
@@ -17,7 +16,7 @@ where
     C: Clone + Send + Sync + 'static,
     S: Clone + Send + Sync + 'static,
 {
-    type Error = LiRpcError;
+    type Error = LiRpcExtractorError;
 
     async fn from_connection_message(
         _connection: &ConnectionDetails<C>,

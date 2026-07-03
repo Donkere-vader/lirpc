@@ -1,8 +1,12 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::{
-    connection_details::ConnectionDetails, extractors::FromConnectionMessage,
-    lirpc_message::LiRpcRequest, translatable::Translatable,
+    connection_details::ConnectionDetails,
+    extractors::FromConnectionMessage,
+    lirpc_message::{
+        LiRpcPayload, LiRpcRequest, LiRpcResponse, LiRpcResponseHeaders, LiRpcResponseResultHeader,
+    },
+    translatable::Translatable,
 };
 
 pub trait Handler<F, T, S, C, R>
@@ -15,7 +19,23 @@ where
         connection: Arc<ConnectionDetails<C>>,
         message: LiRpcRequest,
         state: S,
-    ) -> Pin<Box<dyn Future<Output = R> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = LiRpcResponse> + Send>>;
+}
+
+fn build_lirpc_response(message_id: u32, is_ok: bool, payload: impl Translatable) -> LiRpcResponse {
+    LiRpcResponse::new(
+        LiRpcResponseHeaders::new(
+            message_id,
+            if is_ok {
+                LiRpcResponseResultHeader::Ok
+            } else {
+                LiRpcResponseResultHeader::Err
+            },
+        ),
+        Some(LiRpcPayload::new(
+            serde_json::to_value(payload).expect("TODO"),
+        )),
+    )
 }
 
 macro_rules! try_extract {
@@ -28,11 +48,11 @@ macro_rules! try_extract {
         .await
         {
             Ok(value) => value,
-            Err(_e) => {
+            Err(e) => {
                 // Format the error into a Send-safe String outside the async block,
                 // then early-return a pinned async error future.
                 // return Err(LiRpcError::ExtractorError(e));
-                todo!()
+                return build_lirpc_response($message.headers.id, false, e);
             }
         }
     }};
@@ -55,16 +75,16 @@ macro_rules! impl_handler {
                 connection: std::sync::Arc<ConnectionDetails<C>>,
                 message: LiRpcRequest,
                 state: S,
-            ) -> Pin<Box<dyn Future<Output = R> + Send>> {
+            ) -> Pin<Box<dyn Future<Output = LiRpcResponse> + Send>> {
                 // Touch parameters to suppress unused warnings in the 0-argument case.
                 let _ = (&connection, &message, &state);
 
                 let slf = self.clone();
 
                 Box::pin(async move {
-                    slf($(
+                    build_lirpc_response(message.headers.id, true, slf($(
                         try_extract!($Ti, connection, message, state)
-                    ),*).await
+                    ),*).await)
                 })
             }
         }

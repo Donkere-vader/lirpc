@@ -3,7 +3,7 @@ use std::{pin::Pin, sync::Arc};
 use crate::{
     connection_details::ConnectionDetails,
     handler::Handler,
-    lirpc_message::{LiRpcPayload, LiRpcRequest, LiRpcResponse, LiRpcResponseHeaders},
+    lirpc_message::{LiRpcRequest, LiRpcResponse},
     translatable::Translatable,
 };
 
@@ -37,19 +37,6 @@ where
         message: LiRpcRequest,
         state: S,
     ) -> Pin<Box<dyn Future<Output = LiRpcResponse> + Send>> {
-        let message_id = message.headers.id;
-        let future_call_result = self.0.call(connection, message, state);
-
-        Box::pin(async move {
-            let call_result = future_call_result.await;
-
-            // TODO do conversion from LiRpcType to LiRpcResponse here?
-            LiRpcResponse::new(
-                LiRpcResponseHeaders::new(message_id),
-                Some(LiRpcPayload::new(
-                    serde_json::to_value(call_result).expect("TODO"),
-                )),
-            )
-        })
+        Box::pin(self.0.call(connection, message, state))
     }
 }
