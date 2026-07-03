@@ -12,13 +12,13 @@ async fn main() {
 
     tx
         .send(Message::text(
-            r#"{"type": "function_call", "headers": {"id": 1, "method": "login"}, "payload": {"username": "someuser", "password": "password"}}"#,
+            r#"{"headers": {"id": 1, "function": "login"}, "payload": {"username": "someuser", "password": "password"}}"#,
         ))
         .await
         .unwrap();
 
     tx.send(Message::text(
-        r#"{"type": "function_call", "headers": {"id": 2, "method": "protected_function"}}"#,
+        r#"{"headers": {"id": 2, "function": "protected_function"}}"#,
     ))
     .await
     .unwrap();

@@ -3,17 +3,12 @@ use std::{env, str::FromStr, sync::Arc};
 use lirpc::{
     ServerBuilder,
     connection_details::ConnectionDetails,
-    error::LiRpcError,
-    extractors::{self, FromConnectionMessage, Output},
-    lirpc_message::{
-        IntoRawLiRpcResponsePayload, LiRpcFunctionCall, LiRpcStreamOutput, RawLiRpcMessagePayload,
-    },
-    stream_manager::StreamManager,
+    extractors::{self, FromConnectionMessage},
+    lirpc_message::LiRpcRequest,
 };
-use lirpc_macros::{lirpc_method, lirpc_type};
+use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use tokio::sync::{Mutex, mpsc::Sender};
+use tokio::sync::Mutex;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -25,15 +20,13 @@ struct ConnectionState {
     username: Arc<Mutex<Option<User>>>,
 }
 
-#[lirpc_type]
-#[derive(Deserialize)]
+#[derive(LiRpcType, Serialize, Deserialize)]
 struct AuthMessage {
     username: String,
     password: String,
 }
 
-#[lirpc_type]
-#[derive(Serialize)]
+#[derive(LiRpcType, Serialize, Deserialize)]
 struct SecretMessage {
     secret: String,
 }
@@ -45,10 +38,8 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
 
     async fn from_connection_message(
         connection: &ConnectionDetails<ConnectionState>,
-        _message: &LiRpcFunctionCall,
+        _message: &LiRpcRequest,
         _state: &(),
-        _output: &Sender<LiRpcStreamOutput>,
-        _stream_manager: &StreamManager,
     ) -> Result<Self, Self::Error> {
         let username_lock = connection.connection_state.username.lock().await;
 
@@ -59,34 +50,14 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(LiRpcType, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
-#[lirpc_type]
 pub enum MyError {
     ServerError,
     AuthFailure,
     Unauthenticated,
 }
 
-impl From<LiRpcError> for MyError {
-    fn from(_: LiRpcError) -> Self {
-        Self::ServerError
-    }
-}
-
-impl IntoRawLiRpcResponsePayload for MyError {
-    fn into(&self) -> RawLiRpcMessagePayload {
-        match self {
-            MyError::ServerError => RawLiRpcMessagePayload::Json(json!({"error": "server_error"})),
-            MyError::AuthFailure => RawLiRpcMessagePayload::Json(json!({"error": "auth_failure"})),
-            MyError::Unauthenticated => {
-                RawLiRpcMessagePayload::Json(json!({"error": "unauthenticated"}))
-            }
-        }
-    }
-}
-
-#[lirpc_method]
 async fn login(
     extractors::ConnectionState(connection_state): extractors::ConnectionState<ConnectionState>,
     extractors::Message(message): extractors::Message<AuthMessage>,
@@ -104,20 +75,12 @@ async fn login(
     }
 }
 
-#[lirpc_method]
-async fn protected_function(
-    AuthRequired(User(username)): AuthRequired,
-    output: Output<SecretMessage>,
-) -> Result<(), MyError> {
+async fn protected_function(AuthRequired(User(username)): AuthRequired) -> SecretMessage {
     info!("user '{username}' has requested the secret");
 
-    output
-        .send(SecretMessage {
-            secret: "my-secret-123".to_string(),
-        })
-        .await?;
-
-    Ok(())
+    SecretMessage {
+        secret: "my-secret-123".to_string(),
+    }
 }
 
 #[tokio::main]

@@ -10,12 +10,11 @@ async fn main() {
 
     let (mut tx, mut rx) = socket.split();
 
-    tx
-        .send(Message::text(
-            r#"{"type":"function_call", "headers": {"id": 1, "method": "greet"}, "payload": {"name": "Cas"}}"#
-        ))
-        .await
-        .unwrap();
+    tx.send(Message::text(
+        r#"{"headers": {"id": 1, "function": "greet"}, "payload": {"name": "Cas"}}"#,
+    ))
+    .await
+    .unwrap();
 
     tokio::spawn(async move {
         while let Some(msg) = rx.next().await {

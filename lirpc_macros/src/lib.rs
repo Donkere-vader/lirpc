@@ -1,47 +1,20 @@
-mod lirpc_method;
-mod lirpc_type;
+mod derive;
 
 use proc_macro::TokenStream;
-use serde::Serialize;
-use std::{env, fs, path::PathBuf};
+use syn::{ItemEnum, ItemStruct};
 
-#[proc_macro_attribute]
-pub fn lirpc_type(_attrs: TokenStream, item: TokenStream) -> TokenStream {
-    let type_file = crate::lirpc_type::lirpc_type(proc_macro2::TokenStream::from(item.clone()));
+use crate::{
+    derive::derive_for_enum::derive_translatable_for_enum,
+    derive::derive_for_struct::derive_translatable_for_struct,
+};
 
-    persist(&format!("type-{}.json", type_file.name), &type_file)
-        .expect("Error storing type of lirpc_type");
-
-    item
-}
-
-#[proc_macro_attribute]
-pub fn lirpc_method(_attrs: TokenStream, item: TokenStream) -> TokenStream {
-    let lirpc_method =
-        crate::lirpc_method::lirpc_method(proc_macro2::TokenStream::from(item.clone()));
-
-    persist(&format!("method-{}.json", lirpc_method.name), &lirpc_method)
-        .expect("Error storing method info of lirpc_method");
-
-    item
-}
-
-fn persist<C>(file_name: &str, contents: &C) -> Result<(), String>
-where
-    C: Serialize,
-{
-    let serialized = serde_json::to_string_pretty(contents).map_err(|e| e.to_string())?;
-
-    let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
-
-    let crate_or_bin = env::var("CARGO_CRATE_NAME")
-        .or_else(|_| env::var("CARGO_BIN_NAME"))
-        .or_else(|_| env::var("CARGO_PKG_NAME"))
-        .map_err(|e| e.to_string())?;
-    let lirpc_dir = out_dir.join(format!("lirpc-{}", crate_or_bin));
-
-    fs::create_dir_all(&lirpc_dir).map_err(|e| e.to_string())?;
-    fs::write(lirpc_dir.join(file_name), serialized).map_err(|e| e.to_string())?;
-
-    Ok(())
+#[proc_macro_derive(LiRpcType)]
+pub fn derive_translatable(item: TokenStream) -> TokenStream {
+    if let Ok(enm) = syn::parse2::<ItemEnum>(item.clone().into()) {
+        derive_translatable_for_enum(enm)
+    } else if let Ok(enm) = syn::parse2::<ItemStruct>(item.into()) {
+        derive_translatable_for_struct(enm)
+    } else {
+        panic!("Only enums and structs are supported")
+    }
 }

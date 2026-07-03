@@ -12,9 +12,9 @@ use crate::{
     connection_details::ConnectionDetails,
     error::LiRpcError,
     handler::Handler,
-    lirpc_message::{LiRpcRequest, LiRpcResponseHeaders, LiRpcResponseResult, LiRpcStreamOutput},
+    lirpc_message::{LiRpcRequest, LiRpcResponse},
     service::{HandlerService, Service},
-    stream_manager::StreamManager,
+    translatable::Translatable,
 };
 
 #[derive(Default)]
@@ -36,15 +36,15 @@ where
     /// Register a method/handler to this service
     /// The `name` given to the handler here is what a client
     /// will use to end up calling this handler/method
-    pub fn register_handler<F, T, E>(
+    pub fn register_handler<F, T, R>(
         mut self,
         name: String,
-        handler: impl Handler<F, T, S, C, E> + 'static,
+        handler: impl Handler<F, T, S, C, R> + 'static,
     ) -> Self
     where
         F: 'static,
         T: 'static,
-        E: 'static,
+        R: Translatable + 'static,
         C: Default + Send + Sync + 'static,
     {
         self.handlers
@@ -117,48 +117,28 @@ where
         websocket_message: Message,
         state: S,
         connection: Arc<ConnectionDetails<C>>,
-        output: mpsc::Sender<LiRpcStreamOutput>,
-        stream_manager: StreamManager,
+        output: mpsc::Sender<LiRpcResponse>,
     ) -> Result<(), LiRpcError> {
         let message = LiRpcRequest::try_from(websocket_message)?;
 
         debug!("Received message: {message:?}");
 
-        match message {
-            LiRpcRequest::FunctionCall(fc) => {
-                let handler = handlers
-                    .get(&fc.headers.method)
-                    .ok_or(LiRpcError::HandlerNotFound(fc.headers.method.to_string()))?;
+        let handler =
+            handlers
+                .get(&message.headers.function)
+                .ok_or(LiRpcError::HandlerNotFound(
+                    message.headers.function.to_string(),
+                ))?;
 
-                let message_id = fc.headers.id;
+        let message_id = message.headers.id;
 
-                let invocation = handler
-                    .call(connection, fc, state, output.clone(), stream_manager)
-                    .await;
+        let response = handler.call(connection, message, state).await;
 
-                if let Err(lirpc_error) = invocation {
-                    match lirpc_error {
-                        LiRpcError::ErrorInHandler(error) | LiRpcError::ExtractorError(error) => {
-                            output
-                                .send(LiRpcStreamOutput {
-                                    headers: LiRpcResponseHeaders {
-                                        id: message_id,
-                                        result: LiRpcResponseResult::Err,
-                                    },
-                                    payload: Some(error),
-                                })
-                                .await?;
+        if let Err(e) = output.send(response).await {
+            error!("Error sending response for message ({message_id}): {e}");
+        };
 
-                            Ok(())
-                        }
-                        _ => Err(lirpc_error),
-                    }
-                } else {
-                    Ok(())
-                }
-            }
-            LiRpcRequest::CloseStream(cs) => stream_manager.close_stream(cs.stream_id).await,
-        }
+        Ok(())
     }
 
     async fn handle_connection(
@@ -171,7 +151,6 @@ where
         let (tx, mut rx) = mpsc::channel(10);
 
         let connection_details = Arc::new(new_connection_details);
-        let stream_manager = StreamManager::default();
 
         loop {
             tokio::select! {
@@ -185,10 +164,9 @@ where
                             let tx_clone = tx.clone();
                             let state_clone = state.clone();
                             let connection_clone = connection_details.clone();
-                            let stream_manager_clone = stream_manager.clone();
 
                             tokio::spawn(async move {
-                                if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, connection_clone, tx_clone, stream_manager_clone).await {
+                                if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, connection_clone, tx_clone).await {
                                     match e {
                                         LiRpcError::OutputStreamClosed => {},
                                         _ => error!("Error during handling of message: {e}"),
@@ -208,13 +186,13 @@ where
                     let serialized_response = match response.try_into() {
                         Ok(r) => r,
                         Err(e) => {
-                            debug!("Error serializing response: {e}");
+                            error!("Error serializing response: {e}");
                             break;
                         }
                     };
 
                     if let Err(e) = ws_sender.send(serialized_response).await {
-                        debug!("Error sending response: {e}");
+                        error!("Error sending response: {e}");
                         break;
                     }
                 }

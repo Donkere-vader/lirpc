@@ -1,11 +1,6 @@
-use tokio::sync::mpsc::Sender;
-
 use crate::{
-    connection_details::ConnectionDetails,
-    error::LiRpcError,
-    extractors::FromConnectionMessage,
-    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
-    stream_manager::StreamManager,
+    connection_details::ConnectionDetails, error::LiRpcError, extractors::FromConnectionMessage,
+    lirpc_message::LiRpcRequest,
 };
 
 pub struct ConnectionState<C>(pub C);
@@ -19,10 +14,8 @@ where
 
     async fn from_connection_message(
         connection: &ConnectionDetails<C>,
-        _message: &LiRpcFunctionCall,
+        _message: &LiRpcRequest,
         _state: &S,
-        _output: &Sender<LiRpcStreamOutput>,
-        _stream_manager: &StreamManager,
     ) -> Result<Self, Self::Error> {
         Ok(Self(connection.connection_state.clone()))
     }

@@ -1,17 +1,11 @@
-use crate::lirpc_message::IntoRawLiRpcResponsePayload;
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use tokio::sync::mpsc::Sender;
-
 use crate::{
-    connection_details::ConnectionDetails,
-    error::LiRpcError,
-    extractors::FromConnectionMessage,
-    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
-    stream_manager::StreamManager,
+    connection_details::ConnectionDetails, extractors::FromConnectionMessage,
+    lirpc_message::LiRpcRequest, translatable::Translatable,
 };
 
-pub trait Handler<F, T, S, C, E>
+pub trait Handler<F, T, S, C, R>
 where
     Self: Send + Sync + 'static,
     C: Clone + Send + Sync + 'static,
@@ -19,31 +13,26 @@ where
     fn call(
         &self,
         connection: Arc<ConnectionDetails<C>>,
-        message: LiRpcFunctionCall,
+        message: LiRpcRequest,
         state: S,
-        output: Sender<LiRpcStreamOutput>,
-        stream_manager: StreamManager,
-    ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = R> + Send>>;
 }
 
 macro_rules! try_extract {
-    ($Ty:ty, $connection:expr, $message:expr, $state:expr, $output:expr, $stream_manager:expr) => {{
+    ($Ty:ty, $connection:expr, $message:expr, $state:expr) => {{
         match <$Ty as FromConnectionMessage<_, _>>::from_connection_message(
             &$connection,
             &$message,
             &$state,
-            &$output,
-            &$stream_manager,
         )
         .await
         {
             Ok(value) => value,
-            Err(e) => {
+            Err(_e) => {
                 // Format the error into a Send-safe String outside the async block,
                 // then early-return a pinned async error future.
-                return Err(LiRpcError::ExtractorError(
-                    IntoRawLiRpcResponsePayload::into(&e),
-                ));
+                // return Err(LiRpcError::ExtractorError(e));
+                todo!()
             }
         }
     }};
@@ -51,72 +40,31 @@ macro_rules! try_extract {
 
 macro_rules! impl_handler {
     (( $($Ti:ident),* )) => {
-        impl<F, $($Ti,)* S, Fut, C, E> Handler<F, ( $($Ti,)* ), S, C, Result<(), E>> for F
+        impl<F, $($Ti,)* S, Fut, C, R> Handler<F, ( $($Ti,)* ), S, C, R> for F
         where
             Self: Clone,
             F: Fn( $($Ti),* ) -> Fut + Send + Sync + 'static,
             C: Clone + Send + Sync + 'static,
-            Fut: Future<Output = Result<(), E>> + Send + 'static,
-            E: IntoRawLiRpcResponsePayload,
+            Fut: Future<Output = R> + Send + 'static,
+            R: Translatable,
             S: Clone + Send + Sync + 'static,
             $( $Ti: FromConnectionMessage<S, C>, )*
         {
             fn call(
                 &self,
                 connection: std::sync::Arc<ConnectionDetails<C>>,
-                message: LiRpcFunctionCall,
+                message: LiRpcRequest,
                 state: S,
-                output: Sender<LiRpcStreamOutput>,
-                stream_manager: StreamManager,
-            ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>> {
+            ) -> Pin<Box<dyn Future<Output = R> + Send>> {
                 // Touch parameters to suppress unused warnings in the 0-argument case.
-                let _ = (&connection, &message, &state, &output, &stream_manager);
-
-                let slf = self.clone();
-
-                Box::pin(async move {
-                    let invoke_result = slf($(
-                        try_extract!($Ti, connection, message, state, output, stream_manager)
-                    ),*).await;
-
-                    match invoke_result {
-                        Ok(r) => Ok(r),
-                        Err(e) => Err(LiRpcError::ErrorInHandler(
-                            IntoRawLiRpcResponsePayload::into(&e)
-                        )),
-                    }
-                })
-            }
-        }
-
-        impl<F, $($Ti,)* S, Fut, C> Handler<F, ( $($Ti,)* ), S, C, ()> for F
-        where
-            Self: Clone,
-            F: Fn( $($Ti),* ) -> Fut + Send + Sync + 'static,
-            C: Clone + Send + Sync + 'static,
-            Fut: Future<Output = ()> + Send + 'static,
-            S: Clone + Send + Sync + 'static,
-            $( $Ti: FromConnectionMessage<S, C>, )*
-        {
-            fn call(
-                &self,
-                connection: std::sync::Arc<ConnectionDetails<C>>,
-                message: LiRpcFunctionCall,
-                state: S,
-                output: Sender<LiRpcStreamOutput>,
-                stream_manager: StreamManager,
-            ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>> {
-                // Touch parameters to suppress unused warnings in the 0-argument case.
-                let _ = (&connection, &message, &state, &output, &stream_manager);
+                let _ = (&connection, &message, &state);
 
                 let slf = self.clone();
 
                 Box::pin(async move {
                     slf($(
-                        try_extract!($Ti, connection, message, state, output, stream_manager)
-                    ),*).await;
-
-                    Ok(())
+                        try_extract!($Ti, connection, message, state)
+                    ),*).await
                 })
             }
         }

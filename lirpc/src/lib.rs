@@ -9,4 +9,8 @@ mod server;
 mod service;
 pub mod stream_manager;
 
+pub mod lirpc_type;
+pub mod translatable;
+pub mod type_definition;
+
 pub use server::ServerBuilder;

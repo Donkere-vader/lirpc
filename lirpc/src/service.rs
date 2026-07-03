@@ -1,13 +1,10 @@
 use std::{pin::Pin, sync::Arc};
 
-use tokio::sync::mpsc::Sender;
-
 use crate::{
     connection_details::ConnectionDetails,
-    error::LiRpcError,
     handler::Handler,
-    lirpc_message::{LiRpcFunctionCall, LiRpcStreamOutput},
-    stream_manager::StreamManager,
+    lirpc_message::{LiRpcPayload, LiRpcRequest, LiRpcResponse, LiRpcResponseHeaders},
+    translatable::Translatable,
 };
 
 pub(crate) trait Service<S, C>
@@ -19,32 +16,40 @@ where
     fn call(
         &self,
         connection: Arc<ConnectionDetails<C>>,
-        message: LiRpcFunctionCall,
+        message: LiRpcRequest,
         state: S,
-        output: Sender<LiRpcStreamOutput>,
-        stream_manager: StreamManager,
-    ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = LiRpcResponse> + Send>>;
 }
 
 pub(crate) struct HandlerService<F, T, S, C, E>(pub Box<dyn Handler<F, T, S, C, E>>);
 
-impl<F, T, S, C, E> Service<S, C> for HandlerService<F, T, S, C, E>
+impl<F, T, S, C, R> Service<S, C> for HandlerService<F, T, S, C, R>
 where
     S: Send + Sync + 'static,
     C: Clone + Send + Sync + 'static,
     F: 'static,
     T: 'static,
-    E: 'static,
+    R: Translatable + 'static,
 {
     fn call(
         &self,
         connection: Arc<ConnectionDetails<C>>,
-        message: LiRpcFunctionCall,
+        message: LiRpcRequest,
         state: S,
-        output: Sender<LiRpcStreamOutput>,
-        stream_manager: StreamManager,
-    ) -> Pin<Box<dyn Future<Output = Result<(), LiRpcError>> + Send>> {
-        self.0
-            .call(connection, message, state, output, stream_manager)
+    ) -> Pin<Box<dyn Future<Output = LiRpcResponse> + Send>> {
+        let message_id = message.headers.id;
+        let future_call_result = self.0.call(connection, message, state);
+
+        Box::pin(async move {
+            let call_result = future_call_result.await;
+
+            // TODO do conversion from LiRpcType to LiRpcResponse here?
+            LiRpcResponse::new(
+                LiRpcResponseHeaders::new(message_id),
+                Some(LiRpcPayload::new(
+                    serde_json::to_value(call_result).expect("TODO"),
+                )),
+            )
+        })
     }
 }

@@ -11,7 +11,7 @@ async fn main() {
     let (mut tx, mut rx) = socket.split();
 
     tx.send(Message::text(
-        r#"{"type": "function_call", "headers": {"id": 0, "method": "count"}}"#,
+        r#"{"headers": {"id": 0, "function": "count"}}"#,
     ))
     .await
     .unwrap();

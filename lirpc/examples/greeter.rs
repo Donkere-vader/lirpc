@@ -1,62 +1,25 @@
 use std::{env, str::FromStr};
 
-use lirpc::{
-    ServerBuilder,
-    error::LiRpcError,
-    extractors::{Message, Output},
-    lirpc_message::{IntoRawLiRpcResponsePayload, RawLiRpcMessagePayload},
-};
-use lirpc_macros::{lirpc_method, lirpc_type};
+use lirpc::{ServerBuilder, extractors::Message};
+use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use tracing::Level;
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-#[lirpc_type]
-#[derive(Deserialize)]
+#[derive(LiRpcType, Serialize, Deserialize)]
 struct GreetingRequest {
     name: String,
 }
 
-#[lirpc_type]
-#[derive(Serialize)]
+#[derive(LiRpcType, Serialize, Deserialize)]
 struct GreetingResponse {
     msg: String,
 }
 
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "snake_case", tag = "type")]
-#[lirpc_type]
-pub enum MyError {
-    ServerError,
-}
-
-impl IntoRawLiRpcResponsePayload for MyError {
-    fn into(&self) -> RawLiRpcMessagePayload {
-        match self {
-            MyError::ServerError => RawLiRpcMessagePayload::Json(json!({"error": "server_error"})),
-        }
+async fn greet(Message(msg): Message<GreetingRequest>) -> GreetingResponse {
+    GreetingResponse {
+        msg: format!("Hello {}!", msg.name),
     }
-}
-
-impl From<LiRpcError> for MyError {
-    fn from(_: LiRpcError) -> Self {
-        Self::ServerError
-    }
-}
-
-#[lirpc_method]
-async fn greet(
-    Message(msg): Message<GreetingRequest>,
-    output: Output<GreetingResponse>,
-) -> Result<(), MyError> {
-    output
-        .send(GreetingResponse {
-            msg: format!("Hello {}!", msg.name),
-        })
-        .await?;
-
-    Ok(())
 }
 
 #[tokio::main]
@@ -76,6 +39,8 @@ async fn main() {
             .finish(),
     )
     .expect("Failed to set global tracing subscriber");
+
+    info!("Serving on 127.0.0.1:5000");
 
     server
         .serve("127.0.0.1:5000")

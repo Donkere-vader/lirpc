@@ -1,14 +1,8 @@
 use std::{env, str::FromStr, sync::Arc};
 
-use lirpc::{
-    ServerBuilder,
-    error::LiRpcError,
-    extractors::{Output, State},
-    lirpc_message::{IntoRawLiRpcResponsePayload, RawLiRpcMessagePayload},
-};
-use lirpc_macros::{lirpc_method, lirpc_type};
-use serde::Serialize;
-use serde_json::json;
+use lirpc::{ServerBuilder, extractors::State};
+use lirpc_macros::LiRpcType;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -18,46 +12,24 @@ struct AppState {
     count: Arc<Mutex<u64>>,
 }
 
-#[derive(Serialize)]
-#[lirpc_type]
+#[derive(LiRpcType, Serialize, Deserialize)]
 struct CountResponse {
     count: u64,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(LiRpcType, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
-#[lirpc_type]
 pub enum MyError {
     ServerError,
 }
 
-impl From<LiRpcError> for MyError {
-    fn from(_: LiRpcError) -> Self {
-        Self::ServerError
-    }
-}
-
-impl IntoRawLiRpcResponsePayload for MyError {
-    fn into(&self) -> RawLiRpcMessagePayload {
-        match self {
-            MyError::ServerError => RawLiRpcMessagePayload::Json(json!({"error": "server_error"})),
-        }
-    }
-}
-
-#[lirpc_method]
-async fn count(
-    State(app_state): State<AppState>,
-    output: Output<CountResponse>,
-) -> Result<(), MyError> {
+async fn count(State(app_state): State<AppState>) -> CountResponse {
     let mut counter_lock = app_state.count.lock().await;
     *counter_lock += 1;
     let value = *counter_lock;
     drop(counter_lock);
 
-    output.send(CountResponse { count: value }).await?;
-
-    Ok(())
+    CountResponse { count: value }
 }
 
 #[tokio::main]
