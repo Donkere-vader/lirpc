@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use lirpc::contracts::compile::compile;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -10,18 +9,6 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Compile {
-        #[clap(help = "The name of the crate of which the build target is a part of")]
-        crate_name: String,
-        #[clap(help = "The name of the build target")]
-        target_name: String,
-        contract_path: String,
-        version: String,
-        #[clap(long, default_value_t = false)]
-        release: bool,
-        #[clap(long, default_value_t = false)]
-        minimal: bool,
-    },
     CodeGen {
         contract_path: String,
         language: String,
@@ -33,31 +20,14 @@ enum Commands {
 async fn main() {
     let args = Args::parse();
 
-    let command_result = match args.command {
-        Commands::Compile {
-            crate_name,
-            target_name,
-            contract_path,
-            version,
-            release,
-            minimal,
-        } => {
-            compile(
-                &crate_name,
-                &target_name,
-                &contract_path,
-                version,
-                release,
-                minimal,
-            )
-            .await
-        }
+    let command_result: Result<(), String> = match args.command {
         Commands::CodeGen {
             contract_path: _,
             language: _,
             output_path: _,
         } => {
-            todo!()
+            // TODO
+            Ok(())
         }
     };
 

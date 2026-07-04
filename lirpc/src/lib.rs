@@ -1,6 +1,5 @@
 pub mod codegen;
 pub mod connection_details;
-pub mod contracts;
 pub mod error;
 pub mod extractors;
 mod handler;
