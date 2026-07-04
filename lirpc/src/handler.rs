@@ -1,5 +1,8 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
+use serde_json::json;
+use tracing::error;
+
 use crate::{
     connection_details::ConnectionDetails,
     extractors::FromConnectionMessage,
@@ -23,18 +26,32 @@ where
 }
 
 fn build_lirpc_response(message_id: u32, is_ok: bool, payload: impl Translatable) -> LiRpcResponse {
+    let serialized_payload = serde_json::to_value(payload);
+
+    let headers = LiRpcResponseHeaders::new(
+        message_id,
+        match (is_ok, &serialized_payload) {
+            // An error occurred in the handler
+            (false, _) => LiRpcResponseResultHeader::Err,
+            // An error occurred when serializing the response
+            (true, Err(_)) => LiRpcResponseResultHeader::Err,
+            // both things went Ok
+            (true, Ok(_)) => LiRpcResponseResultHeader::Ok,
+        },
+    );
+
     LiRpcResponse::new(
-        LiRpcResponseHeaders::new(
-            message_id,
-            if is_ok {
-                LiRpcResponseResultHeader::Ok
-            } else {
-                LiRpcResponseResultHeader::Err
-            },
-        ),
-        Some(LiRpcPayload::new(
-            serde_json::to_value(payload).expect("TODO"),
-        )),
+        headers,
+        Some(LiRpcPayload::new(match serialized_payload {
+            Ok(p) => p,
+            Err(e) => {
+                error!("error serializing response: {e}");
+                json!({
+                    "error": "server_error",
+                    "detail": "an error occurred on the server which it was unable to recover from"
+                })
+            }
+        })),
     )
 }
 

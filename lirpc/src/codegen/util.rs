@@ -32,8 +32,11 @@ pub fn rust_type_to_ts_type(rust_type: &Type) -> TsType {
         Type::TypeRef(ident) => TsType::TypeRef(ident.to_string()),
         Type::Vec(ty) => TsType::Array(Box::new(rust_type_to_ts_type(ty))),
         Type::Box(inner) => rust_type_to_ts_type(inner),
-        Type::Option(_) => todo!(),
-        Type::Result(_, _) => todo!(),
+        Type::Option(ty) => TsType::Class("Option".to_string(), vec![rust_type_to_ts_type(ty)]),
+        Type::Result(ty_r, ty_e) => TsType::Class(
+            "Result".to_string(),
+            vec![rust_type_to_ts_type(ty_r), rust_type_to_ts_type(ty_e)],
+        ),
         Type::HashMap(t1, t2) => TsType::Class(
             "Map".to_string(),
             vec![rust_type_to_ts_type(t1), rust_type_to_ts_type(t2)],

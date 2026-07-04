@@ -18,7 +18,7 @@ pub enum Type {
     Union(Box<Type>, Vec<Type>),
     Array(Box<Type>),
     Tuple(Vec<Type>),
-    /// An object consisting of of different `(key, required, type)`
+    /// An object consisting of different `(key, required, type)`
     Object(Vec<(String, bool, Type)>),
     /// A reference to another type defined by the user
     TypeRef(String),
