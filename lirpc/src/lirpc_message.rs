@@ -19,6 +19,7 @@ pub struct LiRpcRequestHeaders {
 #[derive(Debug, Serialize)]
 pub struct LiRpcResponse {
     pub headers: LiRpcResponseHeaders,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<LiRpcPayload>,
 }
 

@@ -53,7 +53,6 @@ impl FromConnectionMessage<(), ConnectionState> for AuthRequired {
 #[derive(LiRpcType, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum MyError {
-    ServerError,
     AuthFailure,
     Unauthenticated,
 }
