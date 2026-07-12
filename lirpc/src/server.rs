@@ -31,7 +31,7 @@ pub struct ServerBuilder<S: Clone, C> {
 impl<S, C> ServerBuilder<S, C>
 where
     S: Send + Sync + Clone + 'static,
-    C: Clone,
+    C: Clone + Send + Sync + 'static,
 {
     pub fn new() -> Self {
         Self {
@@ -53,6 +53,14 @@ where
         R: Translatable + 'static,
         C: Default + Send + Sync + 'static,
     {
+        if name.starts_with("lirpc_") {
+            // Using `eprintln` instead of something from tracing,
+            // as tracing might not have been initialized at this point
+            // and we also want to print this if a user is not using tracing.
+            eprintln!(
+                "Handlers prefixed with 'lirpc_' are reserved. You should name your methods differently."
+            )
+        }
         self.handlers
             .insert(name, Box::new(HandlerService(Box::new(handler))));
         self
