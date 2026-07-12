@@ -1,12 +1,18 @@
 use std::{collections::HashMap, sync::Arc};
 
+use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
 use tokio::{
     net::{TcpListener, TcpStream, ToSocketAddrs},
     sync::mpsc,
 };
-use tokio_tungstenite::{WebSocketStream, accept_async, tungstenite::Message};
+use tokio_tungstenite::accept_async;
+use tokio_util::codec::LengthDelimitedCodec;
 use tracing::{debug, error, warn};
+
+/// Maximum size (in bytes) of a single length-prefixed TCP frame, guarding
+/// against a malformed/oversized length prefix causing an unbounded allocation.
+const MAX_TCP_FRAME_LENGTH: usize = 8 * 1024 * 1024;
 
 use crate::{
     connection_details::ConnectionDetails,
@@ -114,13 +120,11 @@ where
 {
     async fn handle_message(
         handlers: Arc<HashMap<String, Box<dyn Service<S, C>>>>,
-        websocket_message: Message,
+        message: LiRpcRequest,
         state: S,
         connection: Arc<ConnectionDetails<C>>,
         output: mpsc::Sender<LiRpcResponse>,
     ) -> Result<(), LiRpcError> {
-        let message = LiRpcRequest::try_from(websocket_message)?;
-
         debug!("Received message: {message:?}");
 
         let handler =
@@ -141,12 +145,88 @@ where
         Ok(())
     }
 
-    async fn handle_connection(
-        socket: WebSocketStream<TcpStream>,
+    async fn handle_tcp_connection(
+        stream: TcpStream,
         state: S,
         new_connection_details: ConnectionDetails<C>,
         handlers: Arc<HashMap<String, Box<dyn Service<S, C>>>>,
     ) {
+        let framed = LengthDelimitedCodec::builder()
+            .max_frame_length(MAX_TCP_FRAME_LENGTH)
+            .new_framed(stream);
+
+        let (mut frame_sender, mut frame_receiver) = framed.split();
+        let (tx, mut rx) = mpsc::channel(10);
+
+        let connection_details = Arc::new(new_connection_details);
+
+        loop {
+            tokio::select! {
+                frame = frame_receiver.next() => {
+                    match frame {
+                        Some(Ok(bytes)) => {
+                            let handlers_clone = handlers.clone();
+                            let tx_clone = tx.clone();
+                            let state_clone = state.clone();
+                            let connection_clone = connection_details.clone();
+
+                            tokio::spawn(async move {
+                                let message = match serde_json::from_slice::<LiRpcRequest>(&bytes) {
+                                    Ok(m) => m,
+                                    Err(e) => {
+                                        error!("Error deserializing message: {e}");
+                                        return;
+                                    }
+                                };
+
+                                if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, connection_clone, tx_clone).await {
+                                    match e {
+                                        LiRpcError::OutputStreamClosed => {},
+                                        _ => error!("Error during handling of message: {e}"),
+                                    };
+                                }
+                            });
+                        }
+                        Some(Err(e)) => {
+                            debug!("Error receiving TCP frame: {e}");
+                            break;
+                        }
+                        None => break,
+                    }
+                }
+
+                Some(response) = rx.recv() => {
+                    let serialized_response = match serde_json::to_vec(&response) {
+                        Ok(bytes) => Bytes::from(bytes),
+                        Err(e) => {
+                            error!("Error serializing response: {e}");
+                            break;
+                        }
+                    };
+
+                    if let Err(e) = frame_sender.send(serialized_response).await {
+                        error!("Error sending TCP response: {e}");
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    async fn handle_ws_connection(
+        stream: TcpStream,
+        state: S,
+        new_connection_details: ConnectionDetails<C>,
+        handlers: Arc<HashMap<String, Box<dyn Service<S, C>>>>,
+    ) {
+        let socket = match accept_async(stream).await {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("establishing ws connection with client failed: {e}");
+                return;
+            }
+        };
+
         let (mut ws_sender, mut ws_receiver) = socket.split();
         let (tx, mut rx) = mpsc::channel(10);
 
@@ -166,6 +246,14 @@ where
                             let connection_clone = connection_details.clone();
 
                             tokio::spawn(async move {
+                                let message = match LiRpcRequest::try_from(message) {
+                                    Ok(m) => m,
+                                    Err(e) => {
+                                        error!("Error deserializing message: {e}");
+                                        return;
+                                    }
+                                };
+
                                 if let Err(e) = Self::handle_message(handlers_clone, message, state_clone, connection_clone, tx_clone).await {
                                     match e {
                                         LiRpcError::OutputStreamClosed => {},
@@ -200,6 +288,35 @@ where
         }
     }
 
+    async fn classify_connection(stream: &TcpStream) -> ConnectionKind {
+        let mut buf = [0u8; 1024];
+        let n = match stream.peek(&mut buf).await {
+            Ok(n) => n,
+            Err(e) => {
+                warn!(
+                    "Failed to classify connection type. Falling back to TCP. Original error: {e}"
+                );
+                return ConnectionKind::Tcp;
+            }
+        };
+
+        let data = &buf[..n];
+
+        if Self::is_websocket_upgrade(data) {
+            ConnectionKind::WebSocket
+        } else {
+            ConnectionKind::Tcp
+        }
+    }
+
+    fn is_websocket_upgrade(data: &[u8]) -> bool {
+        let Ok(text) = std::str::from_utf8(data) else {
+            return false;
+        };
+
+        text.to_ascii_lowercase().contains("upgrade: websocket")
+    }
+
     pub async fn serve<A>(&self, address: A) -> Result<(), LiRpcError>
     where
         A: ToSocketAddrs,
@@ -209,29 +326,40 @@ where
         while let Ok((stream, _)) = server.accept().await {
             let handlers_clone = self.handlers.clone();
             let state_clone = self.state.clone();
-
-            let accepted_stream = match accept_async(stream).await {
-                Ok(s) => s,
-                Err(e) => {
-                    warn!("establishing connection with client failed: {e}");
-                    continue;
-                }
-            };
-
             let new_connection_details =
                 ConnectionDetails::new((*self.connection_state_initializer)());
 
-            tokio::spawn(async move {
-                Self::handle_connection(
-                    accepted_stream,
-                    state_clone,
-                    new_connection_details,
-                    handlers_clone,
-                )
-                .await;
-            });
+            match Self::classify_connection(&stream).await {
+                ConnectionKind::Tcp => {
+                    tokio::spawn(async move {
+                        Self::handle_tcp_connection(
+                            stream,
+                            state_clone,
+                            new_connection_details,
+                            handlers_clone,
+                        )
+                        .await;
+                    });
+                }
+                ConnectionKind::WebSocket => {
+                    tokio::spawn(async move {
+                        Self::handle_ws_connection(
+                            stream,
+                            state_clone,
+                            new_connection_details,
+                            handlers_clone,
+                        )
+                        .await;
+                    });
+                }
+            }
         }
 
         Ok(())
     }
+}
+
+enum ConnectionKind {
+    Tcp,
+    WebSocket,
 }
