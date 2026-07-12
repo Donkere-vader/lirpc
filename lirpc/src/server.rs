@@ -15,17 +15,41 @@ use tracing::{debug, error, warn};
 const MAX_TCP_FRAME_LENGTH: usize = 8 * 1024 * 1024;
 
 use crate::{
+    api_spec::ApiSpec,
     connection_details::ConnectionDetails,
     error::LiRpcError,
     handler::Handler,
     lirpc_message::{LiRpcRequest, LiRpcResponse},
     service::{HandlerService, Service},
     translatable::Translatable,
+    type_definition::TypeDefinition,
 };
+
+pub struct NamedHandler<S, C> {
+    name: String,
+    handler: Box<dyn Service<S, C>>,
+}
+
+impl<S, C> NamedHandler<S, C> {
+    pub fn new<F, T, R>(name: String, handler: impl Handler<F, T, S, C, R> + 'static) -> Self
+    where
+        F: 'static,
+        T: 'static,
+        R: Translatable + 'static,
+        S: Send + Sync + Clone + 'static,
+        C: Clone + Send + Sync + 'static,
+    {
+        Self {
+            name,
+            handler: Box::new(HandlerService(Box::new(handler))),
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct ServerBuilder<S: Clone, C> {
     handlers: HashMap<String, Box<dyn Service<S, C>>>,
+    type_definitions: HashMap<String, TypeDefinition>,
 }
 
 impl<S, C> ServerBuilder<S, C>
@@ -36,12 +60,16 @@ where
     pub fn new() -> Self {
         Self {
             handlers: HashMap::new(),
+            type_definitions: HashMap::new(),
         }
     }
 
     /// Register a method/handler to this service
     /// The `name` given to the handler here is what a client
     /// will use to end up calling this handler/method
+    ///
+    /// Check out `.with_handlers` for setting up all handlers for the
+    /// server in one go.
     pub fn register_handler<F, T, R>(
         mut self,
         name: String,
@@ -51,7 +79,6 @@ where
         F: 'static,
         T: 'static,
         R: Translatable + 'static,
-        C: Default + Send + Sync + 'static,
     {
         if name.starts_with("lirpc_") {
             // Using `eprintln` instead of something from tracing,
@@ -66,6 +93,47 @@ where
         self
     }
 
+    /// Overwrites the set of handlers with the supplied the collection.
+    /// Recommended usage is in combination with the `handlers!` macro.
+    ///
+    /// # Example
+    /// ```rs
+    /// ServerBuilder::new()
+    ///     .with_handlers(handlers!(greet, ping))
+    ///     .build()
+    /// ```
+    pub fn with_handlers(mut self, handlers: Vec<NamedHandler<S, C>>) -> Self {
+        for handler in handlers.iter() {
+            if handler.name.starts_with("lirpc_") {
+                // Using `eprintln` instead of something from tracing,
+                // as tracing might not have been initialized at this point
+                // and we also want to print this if a user is not using tracing.
+                eprintln!(
+                    "Handlers prefixed with 'lirpc_' are reserved. You should name your methods differently."
+                )
+            }
+        }
+        self.handlers = handlers.into_iter().map(|h| (h.name, h.handler)).collect();
+
+        self
+    }
+
+    /// Registers the types that the server uses, for api spec
+    /// generation.
+    /// Recommended usage is in combination with the `types!` macro.
+    ///
+    /// # Example
+    /// ```rs
+    /// ServerBuilder::new()
+    ///     .with_types(types!(GreetRequest, GreetResponse))
+    ///     .build()
+    /// ```
+    pub fn with_types(mut self, types: Vec<(String, TypeDefinition)>) -> Self {
+        self.type_definitions = types.into_iter().collect();
+
+        self
+    }
+
     pub fn build_with_state_and_connection_state(
         self,
         state: S,
@@ -74,6 +142,7 @@ where
         Server {
             state,
             handlers: Arc::new(self.handlers),
+            type_definitions: Arc::new(self.type_definitions),
             connection_state_initializer: Box::new(default_connection_state),
         }
     }
@@ -87,6 +156,7 @@ where
         Server {
             state,
             handlers: Arc::new(self.handlers),
+            type_definitions: Arc::new(self.type_definitions),
             connection_state_initializer: Box::new(|| ()),
         }
     }
@@ -97,6 +167,7 @@ impl ServerBuilder<(), ()> {
         Server {
             state: (),
             handlers: Arc::new(self.handlers),
+            type_definitions: Arc::new(self.type_definitions),
             connection_state_initializer: Box::new(|| ()),
         }
     }
@@ -110,6 +181,7 @@ impl<C> ServerBuilder<(), C> {
         Server {
             state: (),
             handlers: Arc::new(self.handlers),
+            type_definitions: Arc::new(self.type_definitions),
             connection_state_initializer: Box::new(default_connection_state),
         }
     }
@@ -118,6 +190,7 @@ impl<C> ServerBuilder<(), C> {
 pub struct Server<S: Clone, C> {
     state: S,
     handlers: Arc<HashMap<String, Box<dyn Service<S, C>>>>,
+    type_definitions: Arc<HashMap<String, TypeDefinition>>,
     connection_state_initializer: Box<dyn Fn() -> C>,
 }
 
@@ -365,9 +438,46 @@ where
 
         Ok(())
     }
+
+    pub async fn compile_api_spec(
+        &self,
+        name: String,
+        version: String,
+    ) -> Result<ApiSpec, ApiSpecCompilationError> {
+        ApiSpec::new(
+            name,
+            version,
+            self.handlers
+                .iter()
+                .map(|h| (h.0.to_string(), h.1.get_spec()))
+                .collect(),
+            (*self.type_definitions).clone(),
+        )
+        .map_err(ApiSpecCompilationError::UnknownTypesReferenced)
+    }
+
+    pub async fn compile_json_api_spec(
+        &self,
+        name: String,
+        version: String,
+    ) -> Result<String, ApiSpecCompilationError> {
+        Ok(serde_json::to_string(
+            &self.compile_api_spec(name, version).await?,
+        )?)
+    }
 }
 
 enum ConnectionKind {
     Tcp,
     WebSocket,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ApiSpecCompilationError {
+    #[error(
+        "The type(s) {0:?} ware mentioned in a handler, but they were not registered with the server."
+    )]
+    UnknownTypesReferenced(Vec<String>),
+    #[error("Error serializing api spec: {0:?}")]
+    SerdeError(#[from] serde_json::Error),
 }

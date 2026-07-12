@@ -4,7 +4,9 @@ use lirpc::{
     ServerBuilder,
     connection_details::ConnectionDetails,
     extractors::{self, FromConnectionMessage},
+    handlers,
     lirpc_message::LiRpcRequest,
+    types,
 };
 use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
@@ -85,8 +87,8 @@ async fn protected_function(AuthRequired(User(username)): AuthRequired) -> Secre
 #[tokio::main]
 async fn main() {
     let server = ServerBuilder::new()
-        .register_handler("login".to_string(), login)
-        .register_handler("protected_function".to_string(), protected_function)
+        .with_handlers(handlers!(login, protected_function))
+        .with_types(types!(AuthMessage, SecretMessage))
         .build_with_connection_state(ConnectionState::default);
 
     tracing::subscriber::set_global_default(

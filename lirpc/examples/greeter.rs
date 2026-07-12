@@ -1,6 +1,6 @@
 use std::{env, str::FromStr};
 
-use lirpc::{ServerBuilder, extractors::Message};
+use lirpc::{ServerBuilder, extractors::Message, handlers, types};
 use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
 use tracing::{Level, info};
@@ -25,7 +25,8 @@ async fn greet(Message(msg): Message<GreetingRequest>) -> GreetingResponse {
 #[tokio::main]
 async fn main() {
     let server = ServerBuilder::new()
-        .register_handler("greet".to_string(), greet)
+        .with_handlers(handlers!(greet))
+        .with_types(types!(GreetingRequest, GreetingResponse))
         .build();
 
     tracing::subscriber::set_global_default(

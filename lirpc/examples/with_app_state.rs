@@ -1,6 +1,6 @@
 use std::{env, str::FromStr, sync::Arc};
 
-use lirpc::{ServerBuilder, extractors::State};
+use lirpc::{ServerBuilder, extractors::State, handlers, types};
 use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -35,7 +35,8 @@ async fn count(State(app_state): State<AppState>) -> CountResponse {
 #[tokio::main]
 async fn main() {
     let server = ServerBuilder::new()
-        .register_handler("count".to_string(), count)
+        .with_handlers(handlers!(count))
+        .with_types(types!(CountResponse))
         .build_with_state(AppState::default());
 
     tracing::subscriber::set_global_default(
@@ -49,6 +50,11 @@ async fn main() {
             .finish(),
     )
     .expect("Failed to set global tracing subscriber");
+
+    match lirpc::compile_json_api_spec!(server) {
+        Ok(s) => println!("=== BEGIN API SPEC ===\n{s}\n=== END API SPEC ==="),
+        Err(e) => tracing::error!("Error compiling api spec: {e}"),
+    };
 
     server
         .serve("127.0.0.1:5000")

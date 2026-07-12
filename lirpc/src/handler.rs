@@ -4,12 +4,13 @@ use serde_json::json;
 use tracing::error;
 
 use crate::{
+    api_spec::LiRpcMethodSpec,
     connection_details::ConnectionDetails,
     extractors::FromConnectionMessage,
     lirpc_message::{
         LiRpcPayload, LiRpcRequest, LiRpcResponse, LiRpcResponseHeaders, LiRpcResponseResultHeader,
     },
-    translatable::Translatable,
+    translatable::{Translatable, Type},
 };
 
 pub trait Handler<F, T, S, C, R>
@@ -23,6 +24,8 @@ where
         message: LiRpcRequest,
         state: S,
     ) -> Pin<Box<dyn Future<Output = LiRpcResponse> + Send>>;
+
+    fn get_spec(&self) -> LiRpcMethodSpec;
 }
 
 fn build_lirpc_response(message_id: u32, is_ok: bool, payload: impl Translatable) -> LiRpcResponse {
@@ -104,6 +107,16 @@ macro_rules! impl_handler {
                     ),*).await)
                 })
             }
+
+            fn get_spec(&self) -> LiRpcMethodSpec {
+                let signature_extensions: Vec<Option<Type>> = vec![$($Ti::extends_signature_with(),)*];
+
+                LiRpcMethodSpec {
+                    messages: signature_extensions.into_iter().flatten().collect(),
+                    returns: R::get_type(),
+                }
+            }
+
         }
     };
 }

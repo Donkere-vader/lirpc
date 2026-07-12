@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum Type {
     TypeRef(String),
     Generic(String),

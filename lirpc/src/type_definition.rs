@@ -1,6 +1,8 @@
+use serde::Serialize;
+
 use crate::{codegen::gen_ts_for_type_definition, translatable::Type};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
 pub struct EnumDefinition {
     pub ident: String,
     pub variants: Vec<EnumVariant>,
@@ -17,7 +19,7 @@ impl EnumDefinition {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
 pub struct EnumVariant {
     pub ident: String,
     pub fields: EnumVariantFields,
@@ -50,26 +52,29 @@ impl EnumVariant {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum EnumVariantFields {
     Named(Vec<(String, Type)>),
     Unnamed(Vec<Type>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
 pub struct StructDefinition {
     pub ident: String,
     pub fields: StructFields,
     pub generics: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum StructFields {
     Named(Vec<(String, Type)>),
     Unnamed(Vec<Type>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum TypeDefinition {
     Enum(Box<EnumDefinition>),
     Struct(Box<StructDefinition>),

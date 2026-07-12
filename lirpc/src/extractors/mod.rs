@@ -8,7 +8,9 @@ pub use message::Message;
 pub use state::State;
 
 use crate::{
-    connection_details::ConnectionDetails, lirpc_message::LiRpcRequest, translatable::Translatable,
+    connection_details::ConnectionDetails,
+    lirpc_message::LiRpcRequest,
+    translatable::{Translatable, Type},
 };
 
 pub trait FromConnectionMessage<S, C>
@@ -24,4 +26,11 @@ where
         message: &LiRpcRequest,
         state: &S,
     ) -> impl Future<Output = Result<Self, Self::Error>> + Send;
+
+    /// Extractors that extend the method signature
+    /// with extra accepted messages should
+    /// implement this method meaningfully
+    fn extends_signature_with() -> Option<Type> {
+        None
+    }
 }
