@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{codegen::gen_ts_for_type_definition, translatable::Type};
+use crate::translatable::Type;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct EnumDefinition {
@@ -86,9 +86,5 @@ impl TypeDefinition {
             Self::Enum(enm) => &enm.ident,
             Self::Struct(strct) => &strct.ident,
         }
-    }
-
-    pub fn to_ts(&self) -> String {
-        gen_ts_for_type_definition(self, false)
     }
 }
