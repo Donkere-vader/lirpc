@@ -1,4 +1,4 @@
-mod codegen;
+pub mod codegen;
 pub mod connection_details;
 pub mod error;
 pub mod extractors;
