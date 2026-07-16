@@ -1,0 +1,8 @@
+[package]
+name = "lirpc_rs_codegen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lirpc = { path = "../lirpc" }
+quote = "1.0.46"
