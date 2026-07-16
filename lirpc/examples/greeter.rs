@@ -1,8 +1,9 @@
 use std::{env, str::FromStr};
 
-use lirpc::{ServerBuilder, extractors::Message, handlers, types};
+use lirpc::{ServerBuilder, compile_json_api_spec, extractors::Message, handlers, types};
 use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
+use tokio::fs;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -40,6 +41,11 @@ async fn main() {
             .finish(),
     )
     .expect("Failed to set global tracing subscriber");
+
+    let api_spec = compile_json_api_spec!(server).unwrap();
+    fs::write("./client_examples/greeter/api_spec.json", api_spec)
+        .await
+        .unwrap();
 
     info!("Serving on 127.0.0.1:5000");
 

@@ -1,3 +1,5 @@
 [workspace]
 resolver = "2"
 members = ["lirpc", "lirpc_macros" , "ts_codegen", "lirpc_rs_client", "lirpc_rs_codegen", "lirpc_cli"]
+
+exclude = [ "client_examples"]

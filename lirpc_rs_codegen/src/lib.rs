@@ -28,7 +28,7 @@ impl CodeGen for RustCodeGen {
 impl RustCodeGen {
     fn generate_cargo_toml(spec: &ApiSpec) -> String {
         format!(
-            "[package]\nname = \"{}\"\nversion = \"{}\"\nedition = \"2024\"\n\n[dependencies]\nlirpc_client = {{}}\nserde = {{ version = \"1.0.228\", features = [\"derive\"] }}\n",
+            "[package]\nname = \"{}\"\nversion = \"{}\"\nedition = \"2024\"\n\n[dependencies]\nlirpc_rs_client = {{ git = \"ssh://git@codeberg.org/donkere-vader/lirpc\" }}\nserde = {{ version = \"1.0.228\", features = [\"derive\"] }}\n",
             spec.name, spec.version,
         )
     }

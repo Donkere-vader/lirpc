@@ -1,7 +1,7 @@
 use std::{env, str::FromStr, sync::Arc};
 
 use lirpc::{
-    ServerBuilder,
+    ServerBuilder, compile_json_api_spec,
     connection_details::ConnectionDetails,
     extractors::{self, FromConnectionMessage},
     handlers,
@@ -10,7 +10,7 @@ use lirpc::{
 };
 use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
+use tokio::{fs, sync::Mutex};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -102,6 +102,13 @@ async fn main() {
             .finish(),
     )
     .expect("Failed to set global tracing subscriber");
+
+    let api_spec = compile_json_api_spec!(server).unwrap();
+    fs::write("./client_examples/auth/api_spec.json", api_spec)
+        .await
+        .unwrap();
+
+    info!("Serving on 127.0.0.1:5000");
 
     server
         .serve("127.0.0.1:5000")

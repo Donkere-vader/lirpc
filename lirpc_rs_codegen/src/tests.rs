@@ -17,11 +17,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-lirpc_client = {}
+lirpc_rs_client = {}
 serde = { version = "1.0.228", features = ["derive"] }
 "#;
 
-const EMPTY_LIB_RS: &str = r#"use lirpc_client::{Client, transport::Transport};
+const EMPTY_LIB_RS: &str = r#"use lirpc_rs_client::{Client, transport::Transport};
 use serde::{Deserialize, Serialize};
 "#;
 
@@ -51,11 +51,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-lirpc_client = {}
+lirpc_rs_client = {}
 serde = { version = "1.0.228", features = ["derive"] }
 "#;
 
-const GREETER_LIB_RS: &str = r#"use lirpc_client::{Client, transport::Transport};
+const GREETER_LIB_RS: &str = r#"use lirpc_rs_client::{Client, transport::Transport};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,7 +71,7 @@ pub struct GreetingResponse {
 pub async fn greet<T, F>(
     client: &mut Client<T, F>,
     request: GreetingRequest,
-) -> Result<GreetingResponse, lirpc_client::error::Error>
+) -> Result<GreetingResponse, lirpc_rs_client::error::Error>
 where
     T: Transport<F>,
 {
@@ -126,7 +126,7 @@ fn test_greeter_api_spec() {
     assert_eq!(lib_rs, GREETER_LIB_RS);
 }
 
-const AUTH_LIB_RS: &str = r#"use lirpc_client::{Client, transport::Transport};
+const AUTH_LIB_RS: &str = r#"use lirpc_rs_client::{Client, transport::Transport};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,7 +149,7 @@ pub struct SecretMessage {
 pub async fn login<T, F>(
     client: &mut Client<T, F>,
     request: AuthMessage,
-) -> Result<Result<(), MyError>, lirpc_client::error::Error>
+) -> Result<Result<(), MyError>, lirpc_rs_client::error::Error>
 where
     T: Transport<F>,
 {
@@ -162,7 +162,7 @@ where
 
 pub async fn protected_function<T, F>(
     client: &mut Client<T, F>,
-) -> Result<SecretMessage, lirpc_client::error::Error>
+) -> Result<SecretMessage, lirpc_rs_client::error::Error>
 where
     T: Transport<F>,
 {

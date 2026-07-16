@@ -1,4 +1,4 @@
-use lirpc_client::Client;
+use lirpc_rs_client::Client;
 use serde::Deserialize;
 use serde_json::{Value, json};
 

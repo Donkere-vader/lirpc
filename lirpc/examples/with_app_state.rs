@@ -1,10 +1,10 @@
 use std::{env, str::FromStr, sync::Arc};
 
-use lirpc::{ServerBuilder, extractors::State, handlers, types};
+use lirpc::{ServerBuilder, compile_json_api_spec, extractors::State, handlers, types};
 use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
-use tracing::Level;
+use tokio::{fs, sync::Mutex};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Clone)] // State used in the server must implement Clone
@@ -51,10 +51,12 @@ async fn main() {
     )
     .expect("Failed to set global tracing subscriber");
 
-    match lirpc::compile_json_api_spec!(server) {
-        Ok(s) => println!("=== BEGIN API SPEC ===\n{s}\n=== END API SPEC ==="),
-        Err(e) => tracing::error!("Error compiling api spec: {e}"),
-    };
+    let api_spec = compile_json_api_spec!(server).unwrap();
+    fs::write("./client_examples/with_app_state/api_spec.json", api_spec)
+        .await
+        .unwrap();
+
+    info!("Serving on 127.0.0.1:5000");
 
     server
         .serve("127.0.0.1:5000")

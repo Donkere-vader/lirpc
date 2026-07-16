@@ -521,7 +521,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "lirpc_client"
+name = "lirpc_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn",
+]
+
+[[package]]
+name = "lirpc_rs_client"
 version = "0.1.0"
 dependencies = [
  "futures",
@@ -535,17 +546,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "webpki-roots 1.0.8",
-]
-
-[[package]]
-name = "lirpc_macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "syn",
 ]
 
 [[package]]
