@@ -1,8 +1,8 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::translatable::Type;
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EnumDefinition {
     pub ident: String,
     pub variants: Vec<EnumVariant>,
@@ -19,7 +19,7 @@ impl EnumDefinition {
     }
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EnumVariant {
     pub ident: String,
     pub fields: EnumVariantFields,
@@ -52,28 +52,28 @@ impl EnumVariant {
     }
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum EnumVariantFields {
     Named(Vec<(String, Type)>),
     Unnamed(Vec<Type>),
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StructDefinition {
     pub ident: String,
     pub fields: StructFields,
     pub generics: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StructFields {
     Named(Vec<(String, Type)>),
     Unnamed(Vec<Type>),
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum TypeDefinition {
     Enum(Box<EnumDefinition>),

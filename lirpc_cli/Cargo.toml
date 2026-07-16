@@ -1,0 +1,10 @@
+[package]
+name = "lirpc_cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lirpc_rs_codegen = { path = "../lirpc_rs_codegen" }
+clap = { version = "4.6.2", features = ["derive"] }
+lirpc = { version = "0.1.0", path = "../lirpc" }
+thiserror = "2.0.18"
