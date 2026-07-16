@@ -1,7 +1,7 @@
-mod error;
+pub mod error;
 mod lirpc_message;
 mod serializers;
-mod transport;
+pub mod transport;
 
 use std::{collections::BTreeMap, marker::PhantomData, sync::Arc};
 
