@@ -17,7 +17,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-lirpc_rs_client = {}
+lirpc_rs_client = { git = "ssh://git@codeberg.org/donkere-vader/lirpc" }
 serde = { version = "1.0.228", features = ["derive"] }
 "#;
 
@@ -51,7 +51,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-lirpc_rs_client = {}
+lirpc_rs_client = { git = "ssh://git@codeberg.org/donkere-vader/lirpc" }
 serde = { version = "1.0.228", features = ["derive"] }
 "#;
 

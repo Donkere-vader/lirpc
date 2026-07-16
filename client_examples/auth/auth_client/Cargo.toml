@@ -1,0 +1,9 @@
+[package]
+name = "auth_client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+auth_lib = { path = "../auth_lib" }
+tokio = { version = "1.52.4", features = ["full"] }
+lirpc_rs_client = { git = "ssh://git@codeberg.org/donkere-vader/lirpc" }

@@ -19,12 +19,10 @@ pub use server::ServerBuilder;
 #[macro_export]
 macro_rules! compile_json_api_spec {
     ($server:ident) => {
-        $server
-            .compile_json_api_spec(
-                env!("CARGO_PKG_NAME").to_string(),
-                env!("CARGO_PKG_VERSION").to_string(),
-            )
-            .await
+        $server.compile_json_api_spec(
+            env!("CARGO_PKG_NAME").to_string(),
+            env!("CARGO_PKG_VERSION").to_string(),
+        )
     };
 }
 

@@ -35,7 +35,7 @@ impl RustCodeGen {
 
     fn generate_rust_code(spec: &ApiSpec) -> String {
         let imports = Self::pretty_print(quote! {
-            use lirpc_client::{Client, transport::Transport};
+            use lirpc_rs_client::{Client, transport::Transport};
             use serde::{Deserialize, Serialize};
         });
 
@@ -198,7 +198,7 @@ impl RustCodeGen {
             [] => quote! {
                 pub async fn #fn_ident<T, F>(
                     client: &mut Client<T, F>,
-                ) -> Result<#return_type, lirpc_client::error::Error>
+                ) -> Result<#return_type, lirpc_rs_client::error::Error>
                 where
                     T: Transport<F>,
                 {
@@ -216,7 +216,7 @@ impl RustCodeGen {
                     pub async fn #fn_ident<T, F>(
                         client: &mut Client<T, F>,
                         request: #request_type,
-                    ) -> Result<#return_type, lirpc_client::error::Error>
+                    ) -> Result<#return_type, lirpc_rs_client::error::Error>
                     where
                         T: Transport<F>,
                     {

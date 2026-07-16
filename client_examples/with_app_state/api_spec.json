@@ -1,0 +1,1 @@
+{"name":"with_app_state_lib","version":"0.1.0","methods":{"count":{"messages":[],"returns":{"type_ref":"CountResponse"}}},"types":{"CountResponse":{"struct":{"ident":"CountResponse","fields":{"named":[["count","u64"]]},"generics":[]}}}}

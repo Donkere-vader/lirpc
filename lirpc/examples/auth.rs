@@ -1,7 +1,7 @@
 use std::{env, str::FromStr, sync::Arc};
 
 use lirpc::{
-    ServerBuilder, compile_json_api_spec,
+    ServerBuilder,
     connection_details::ConnectionDetails,
     extractors::{self, FromConnectionMessage},
     handlers,
@@ -88,7 +88,7 @@ async fn protected_function(AuthRequired(User(username)): AuthRequired) -> Secre
 async fn main() {
     let server = ServerBuilder::new()
         .with_handlers(handlers!(login, protected_function))
-        .with_types(types!(AuthMessage, SecretMessage))
+        .with_types(types!(AuthMessage, SecretMessage, MyError))
         .build_with_connection_state(ConnectionState::default);
 
     tracing::subscriber::set_global_default(
@@ -103,7 +103,12 @@ async fn main() {
     )
     .expect("Failed to set global tracing subscriber");
 
-    let api_spec = compile_json_api_spec!(server).unwrap();
+    let api_spec = server
+        .compile_json_api_spec(
+            "auth_lib".to_string(),
+            env!("CARGO_PKG_VERSION").to_string(),
+        )
+        .unwrap();
     fs::write("./client_examples/auth/api_spec.json", api_spec)
         .await
         .unwrap();

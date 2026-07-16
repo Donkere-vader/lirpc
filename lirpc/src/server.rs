@@ -439,7 +439,7 @@ where
         Ok(())
     }
 
-    pub async fn compile_api_spec(
+    pub fn compile_api_spec(
         &self,
         name: String,
         version: String,
@@ -456,13 +456,13 @@ where
         .map_err(ApiSpecCompilationError::UnknownTypesReferenced)
     }
 
-    pub async fn compile_json_api_spec(
+    pub fn compile_json_api_spec(
         &self,
         name: String,
         version: String,
     ) -> Result<String, ApiSpecCompilationError> {
         Ok(serde_json::to_string(
-            &self.compile_api_spec(name, version).await?,
+            &self.compile_api_spec(name, version)?,
         )?)
     }
 }

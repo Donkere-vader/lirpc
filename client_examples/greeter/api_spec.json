@@ -1,0 +1,1 @@
+{"name":"greeter_lib","version":"0.1.0","methods":{"greet":{"messages":[{"type_ref":"GreetingRequest"}],"returns":{"type_ref":"GreetingResponse"}}},"types":{"GreetingRequest":{"struct":{"ident":"GreetingRequest","fields":{"named":[["name","string"]]},"generics":[]}},"GreetingResponse":{"struct":{"ident":"GreetingResponse","fields":{"named":[["msg","string"]]},"generics":[]}}}}
