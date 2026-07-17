@@ -17,10 +17,10 @@ LiRPC is a lightweight, strictly typed RPC framework for Rust Servers and Client
 Define a request/response type and a handler, then register it on the server:
 
 ```rust
-/// lirpc/examples/greeter.rs
+/// similar to lirpc/examples/greeter.rs
 use std::{env, str::FromStr};
 
-use lirpc::{ServerBuilder, extractors::Message, handlers, types};
+use lirpc::{ServerBuilder, compile_json_api_spec, extractors::Message, handlers, types};
 use lirpc_macros::LiRpcType;
 use serde::{Deserialize, Serialize};
 use tracing::{Level, info};
@@ -46,6 +46,7 @@ async fn greet(Message(msg): Message<GreetingRequest>) -> GreetingResponse {
 async fn main() {
     let server = ServerBuilder::new()
         .with_handlers(handlers!(greet))
+        // Registering the types is necessary for generating the correct api spec
         .with_types(types!(GreetingRequest, GreetingResponse))
         .build();
 
@@ -61,6 +62,11 @@ async fn main() {
     )
     .expect("Failed to set global tracing subscriber");
 
+    let api_spec = compile_json_api_spec!(server).unwrap();
+    fs::write("api_spec.json", api_spec)
+        .await
+        .unwrap();
+
     info!("Serving on 127.0.0.1:5000");
 
     server
@@ -70,11 +76,35 @@ async fn main() {
 }
 ```
 
-Client example:
+Use the api spec in `api_spec.json` to generate a client library:
 
-_Waiting for codegen implementation_
+```sh
+lirpc codegen rust api_spec.json greeter
+```
 
-The current client examples are hardcoded, just to be able to actually test the example server implementations.
+Then on the client side we can simply do the following:
+
+```rust
+/// Similar to client_examples/greeter/greeter_client/src/main.rs
+use greeter::{GreetingRequest, greet};
+use lirpc_rs_client::Client;
+
+#[tokio::main]
+async fn main() {
+    let mut client = Client::new_tcp_plain("127.0.0.1:5000").await.unwrap();
+
+    let response = greet(
+        &mut client,
+        GreetingRequest {
+            name: "Cas".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+
+    println!("Server said: {}", response.msg);
+}
+```
 
 ## Contributing
 
