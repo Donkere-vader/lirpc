@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -8,8 +8,8 @@ use crate::{translatable::Type, type_definition::TypeDefinition};
 pub struct ApiSpec {
     pub name: String,
     pub version: String,
-    pub methods: HashMap<String, LiRpcMethodSpec>,
-    pub types: HashMap<String, TypeDefinition>,
+    pub methods: BTreeMap<String, LiRpcMethodSpec>,
+    pub types: BTreeMap<String, TypeDefinition>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -26,8 +26,8 @@ impl ApiSpec {
     pub fn new(
         name: String,
         version: String,
-        methods: HashMap<String, LiRpcMethodSpec>,
-        types: HashMap<String, TypeDefinition>,
+        methods: BTreeMap<String, LiRpcMethodSpec>,
+        types: BTreeMap<String, TypeDefinition>,
     ) -> Result<Self, Vec<String>> {
         let spec = Self {
             name,
@@ -105,7 +105,7 @@ pub struct LiRpcMethodSpec {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use crate::{
         api_spec::{ApiSpec, LiRpcMethodSpec},
@@ -117,7 +117,7 @@ mod tests {
         let api_spec = ApiSpec::new(
             "myapp".to_string(),
             "0.1.0".to_string(),
-            HashMap::from([(
+            BTreeMap::from([(
                 "greet".to_string(),
                 LiRpcMethodSpec {
                     messages: vec![],
@@ -127,7 +127,7 @@ mod tests {
                     ),
                 },
             )]),
-            HashMap::new(),
+            BTreeMap::new(),
         );
 
         assert!(api_spec.is_err());

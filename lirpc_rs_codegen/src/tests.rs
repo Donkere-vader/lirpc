@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use lirpc::{
     api_spec::{ApiSpec, LiRpcMethodSpec},
@@ -30,8 +30,8 @@ fn test_empty_api_spec() {
     let spec = ApiSpec::new(
         "my-app".to_string(),
         "0.1.0".to_string(),
-        HashMap::new(),
-        HashMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
     )
     .unwrap();
 
@@ -88,14 +88,14 @@ fn test_greeter_api_spec() {
     let spec = ApiSpec::new(
         "greeter".to_string(),
         "0.1.0".to_string(),
-        HashMap::from([(
+        BTreeMap::from([(
             "greet".to_string(),
             LiRpcMethodSpec {
                 messages: vec![Type::TypeRef("GreetingRequest".to_string())],
                 returns: Type::TypeRef("GreetingResponse".to_string()),
             },
         )]),
-        HashMap::from([
+        BTreeMap::from([
             (
                 "GreetingRequest".to_string(),
                 TypeDefinition::Struct(Box::new(StructDefinition {
@@ -179,7 +179,7 @@ fn test_auth_like_api_spec() {
     let spec = ApiSpec::new(
         "auth".to_string(),
         "0.1.0".to_string(),
-        HashMap::from([
+        BTreeMap::from([
             (
                 "login".to_string(),
                 LiRpcMethodSpec {
@@ -198,7 +198,7 @@ fn test_auth_like_api_spec() {
                 },
             ),
         ]),
-        HashMap::from([
+        BTreeMap::from([
             (
                 "AuthMessage".to_string(),
                 TypeDefinition::Struct(Box::new(StructDefinition {

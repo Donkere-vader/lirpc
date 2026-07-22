@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
@@ -49,7 +52,7 @@ impl<S, C> NamedHandler<S, C> {
 #[derive(Default)]
 pub struct ServerBuilder<S: Clone, C> {
     handlers: HashMap<String, Box<dyn Service<S, C>>>,
-    type_definitions: HashMap<String, TypeDefinition>,
+    type_definitions: BTreeMap<String, TypeDefinition>,
 }
 
 impl<S, C> ServerBuilder<S, C>
@@ -60,7 +63,7 @@ where
     pub fn new() -> Self {
         Self {
             handlers: HashMap::new(),
-            type_definitions: HashMap::new(),
+            type_definitions: BTreeMap::new(),
         }
     }
 
@@ -190,7 +193,7 @@ impl<C> ServerBuilder<(), C> {
 pub struct Server<S: Clone, C> {
     state: S,
     handlers: Arc<HashMap<String, Box<dyn Service<S, C>>>>,
-    type_definitions: Arc<HashMap<String, TypeDefinition>>,
+    type_definitions: Arc<BTreeMap<String, TypeDefinition>>,
     connection_state_initializer: Box<dyn Fn() -> C>,
 }
 
