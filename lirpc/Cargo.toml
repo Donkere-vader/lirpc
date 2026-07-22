@@ -17,8 +17,8 @@ tokio-tungstenite = "0.28"
 tokio-util = { version = "0.7", features = ["codec"] }
 bytes = "1"
 futures = "0.3"
-ts_codegen = { path = "../ts_codegen" }
-lirpc_macros = { path = "../lirpc_macros" }
+ts_codegen = { path = "../ts_codegen", version = "0.1.0" }
+lirpc_macros = { path = "../lirpc_macros", version = "0.1.0" }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
