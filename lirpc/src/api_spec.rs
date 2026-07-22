@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter::once};
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -52,6 +52,20 @@ impl ApiSpec {
         Ok(spec)
     }
 
+    fn get_type_refs_from_type(ty: &Type) -> Vec<&str> {
+        match ty {
+            Type::TypeRef(type_ref) => vec![type_ref.as_str()],
+            Type::Option(ty) | Type::Box(ty) | Type::Vec(ty) => Self::get_type_refs_from_type(ty),
+            Type::Result(ty1, ty2) | Type::HashMap(ty1, ty2) => {
+                let mut combined = Self::get_type_refs_from_type(ty1);
+                combined.append(&mut Self::get_type_refs_from_type(ty2));
+
+                combined
+            }
+            _ => Vec::new(),
+        }
+    }
+
     fn validate(&self) -> Result<(), Vec<String>> {
         let referenced_types: Vec<&str> = self
             .methods
@@ -59,15 +73,8 @@ impl ApiSpec {
             .flat_map(|m| {
                 m.messages
                     .iter()
-                    .map(|msg| match &msg {
-                        Type::TypeRef(s) => Some(s.as_str()),
-                        _ => None,
-                    })
-                    .chain(once(match &m.returns {
-                        Type::TypeRef(s) => Some(s.as_str()),
-                        _ => None,
-                    }))
-                    .flatten()
+                    .flat_map(Self::get_type_refs_from_type)
+                    .chain(Self::get_type_refs_from_type(&m.returns))
             })
             .collect();
 
@@ -94,4 +101,35 @@ impl ApiSpec {
 pub struct LiRpcMethodSpec {
     pub messages: Vec<Type>,
     pub returns: Type,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::{
+        api_spec::{ApiSpec, LiRpcMethodSpec},
+        translatable::Type,
+    };
+
+    #[test]
+    fn should_deny_recursive_type_with_type_ref() {
+        let api_spec = ApiSpec::new(
+            "myapp".to_string(),
+            "0.1.0".to_string(),
+            HashMap::from([(
+                "greet".to_string(),
+                LiRpcMethodSpec {
+                    messages: vec![],
+                    returns: Type::Result(
+                        Box::new(Type::I128),
+                        Box::new(Type::TypeRef("Error".to_string())),
+                    ),
+                },
+            )]),
+            HashMap::new(),
+        );
+
+        assert!(api_spec.is_err());
+    }
 }
