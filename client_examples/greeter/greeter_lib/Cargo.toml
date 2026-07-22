@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-lirpc_rs_client = { git = "ssh://git@codeberg.org/donkere-vader/lirpc" }
+lirpc_rs_client = { path = "../../../lirpc_rs_client"}
 serde = { version = "1.0.228", features = ["derive"] }

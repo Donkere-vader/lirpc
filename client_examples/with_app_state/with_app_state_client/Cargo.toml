@@ -6,4 +6,4 @@ edition = "2024"
 [dependencies]
 with_app_state_lib = { path = "../with_app_state_lib" }
 tokio = { version = "1.52.4", features = ["full"] }
-lirpc_rs_client = { git = "ssh://git@codeberg.org/donkere-vader/lirpc" }
+lirpc_rs_client = { path = "../../../lirpc_rs_client"}
