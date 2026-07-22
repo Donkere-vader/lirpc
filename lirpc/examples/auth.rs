@@ -1,8 +1,7 @@
 use std::{env, str::FromStr, sync::Arc};
 
 use lirpc::{
-    ServerBuilder,
-    connection_details::ConnectionDetails,
+    ConnectionDetails, ServerBuilder,
     extractors::{self, FromConnectionMessage},
     handlers,
     lirpc_message::LiRpcRequest,
